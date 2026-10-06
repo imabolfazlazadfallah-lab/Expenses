@@ -1,0 +1,611 @@
+
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>مدیریت هزینه</title>
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="app-shell">
+
+    <!-- ================= HEADER ================= -->
+
+    <header class="top-header">
+
+        <div>
+            <div class="welcome-text">
+                سلام 👋
+            </div>
+
+            <div class="app-title">
+                مدیریت هزینه
+            </div>
+        </div>
+
+        <button
+            class="header-icon-button"
+            id="notificationButton"
+            type="button"
+        >
+            🔔
+        </button>
+
+    </header>
+
+
+    <!-- ================= TODAY ================= -->
+
+    <div
+        class="today-date"
+        id="todayDate"
+    >
+        امروز
+    </div>
+
+
+    <!-- ================= TODAY SUMMARY ================= -->
+
+    <section class="hero-card">
+
+        <div class="hero-title">
+            هزینه امروز
+        </div>
+
+        <div
+            class="hero-amount"
+            id="todayTotal"
+        >
+            ۰ تومان
+        </div>
+
+        <div class="hero-subtitle">
+            مجموع هزینه‌های امروز
+        </div>
+
+    </section>
+
+
+    <!-- ================= QUICK INPUT ================= -->
+
+    <section class="quick-input-card">
+
+        <div class="section-title">
+            ثبت سریع هزینه
+        </div>
+
+        <div class="quick-input-wrapper">
+
+            <input
+                type="text"
+                id="expenseText"
+                class="quick-input"
+                placeholder="مثلاً: ۲۰۰ هزار تومان کرایه تاکسی"
+                autocomplete="off"
+            >
+
+            <button
+                type="button"
+                class="voice-button"
+                id="voiceButton"
+                title="ثبت صوتی"
+            >
+                🎤
+            </button>
+
+        </div>
+
+        <button
+            type="button"
+            class="primary-button full-width"
+            id="saveExpenseButton"
+        >
+            ثبت هزینه
+        </button>
+
+    </section>
+
+
+    <!-- ================= MONTHLY SUMMARY ================= -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+                <div class="section-title">
+                    خلاصه ماه
+                </div>
+
+                <div class="section-subtitle">
+                    وضعیت هزینه‌های این ماه
+                </div>
+            </div>
+
+            <button
+                type="button"
+                class="small-action-button"
+                id="refreshButton"
+            >
+                ↻
+            </button>
+
+        </div>
+
+
+        <div class="summary-grid">
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    💰
+                </div>
+
+                <div class="summary-label">
+                    کل هزینه
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="monthlyTotal"
+                >
+                    ۰ تومان
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-icon">
+                    📊
+                </div>
+
+                <div class="summary-label">
+                    میانگین روزانه
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="monthlyAverage"
+                >
+                    ۰ تومان
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= CATEGORIES ================= -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+                <div class="section-title">
+                    دسته‌بندی هزینه‌ها
+                </div>
+
+                <div class="section-subtitle">
+                    بیشترین هزینه‌ها
+                </div>
+            </div>
+
+        </div>
+
+
+        <div
+            class="category-list"
+            id="categoryList"
+        >
+
+            <div class="loading">
+                در حال دریافت اطلاعات...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= RECENT EXPENSES ================= -->
+
+    <section class="dashboard-section recent-section">
+
+        <div class="section-header">
+
+            <div>
+                <div class="section-title">
+                    هزینه‌های اخیر
+                </div>
+
+                <div class="section-subtitle">
+                    هزینه‌های ثبت‌شده امروز
+                </div>
+            </div>
+
+        </div>
+
+
+        <div
+            class="expense-list"
+            id="expenseList"
+        >
+
+            <div class="loading">
+                در حال دریافت اطلاعات...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= BOTTOM NAV ================= -->
+
+    <nav class="bottom-nav">
+
+        <button
+            type="button"
+            class="bottom-nav-item active"
+            data-nav="home"
+        >
+            <span>🏠</span>
+            <small>خانه</small>
+        </button>
+
+
+        <button
+            type="button"
+            class="bottom-nav-item"
+            data-nav="reports"
+        >
+            <span>📊</span>
+            <small>گزارش‌ها</small>
+        </button>
+
+
+        <button
+            type="button"
+            class="bottom-nav-add"
+            id="bottomAddButton"
+        >
+            +
+        </button>
+
+
+        <button
+            type="button"
+            class="bottom-nav-item"
+            data-nav="accounts"
+        >
+            <span>💳</span>
+            <small>حساب‌ها</small>
+        </button>
+
+
+        <button
+            type="button"
+            class="bottom-nav-item"
+            data-nav="settings"
+        >
+            <span>⚙️</span>
+            <small>تنظیمات</small>
+        </button>
+
+    </nav>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- CONFIRMATION MODAL -->
+<!-- ===================================================== -->
+
+<div
+    class="modal-overlay hidden"
+    id="confirmationModal"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <h2>
+                تأیید هزینه
+            </h2>
+
+            <button
+                class="modal-close"
+                id="closeModalButton"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="confirmation-content">
+
+            <div class="confirmation-icon">
+                💰
+            </div>
+
+            <div
+                class="confirmation-description"
+                id="confirmationDescription"
+            >
+                -
+            </div>
+
+
+            <div
+                class="confirmation-amount"
+                id="confirmationAmount"
+            >
+                -
+            </div>
+
+
+            <div
+                class="confirmation-category"
+                id="confirmationCategory"
+            >
+                -
+            </div>
+
+
+            <div
+                class="confirmation-date"
+                id="confirmationDate"
+            >
+                -
+            </div>
+
+        </div>
+
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="secondary-button"
+                id="cancelConfirmationButton"
+            >
+                انصراف
+            </button>
+
+            <button
+                type="button"
+                class="primary-button"
+                id="confirmExpenseButton"
+            >
+                تأیید و ثبت
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- EDIT EXPENSE MODAL -->
+<!-- ===================================================== -->
+
+<div
+    class="modal-overlay hidden"
+    id="editExpenseModal"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <h2>
+                ویرایش هزینه
+            </h2>
+
+            <button
+                class="modal-close"
+                id="closeEditModalButton"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="edit-form">
+
+            <label for="editAmount">
+                مبلغ
+            </label>
+
+            <input
+                type="number"
+                id="editAmount"
+                min="1"
+                placeholder="مبلغ به تومان"
+            >
+
+
+            <label for="editDescription">
+                توضیحات
+            </label>
+
+            <input
+                type="text"
+                id="editDescription"
+                maxlength="500"
+                placeholder="توضیحات هزینه"
+            >
+
+
+            <label for="editCategory">
+                دسته‌بندی
+            </label>
+
+            <select id="editCategory">
+
+                <option value="">
+                    انتخاب دسته‌بندی
+                </option>
+
+            </select>
+
+
+            <label for="editDate">
+                تاریخ
+            </label>
+
+            <input
+                type="date"
+                id="editDate"
+            >
+
+        </div>
+
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="secondary-button"
+                id="cancelEditButton"
+            >
+                انصراف
+            </button>
+
+            <button
+                type="button"
+                class="primary-button"
+                id="saveEditButton"
+            >
+                ذخیره تغییرات
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- DELETE EXPENSE MODAL -->
+<!-- ===================================================== -->
+
+<div
+    class="modal-overlay hidden"
+    id="deleteExpenseModal"
+>
+
+    <div class="modal-card delete-modal-card">
+
+        <div class="modal-header">
+
+            <h2>
+                حذف هزینه
+            </h2>
+
+            <button
+                class="modal-close"
+                id="closeDeleteModalButton"
+                type="button"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div class="delete-expense-content">
+
+            <div class="delete-warning">
+                🗑️
+            </div>
+
+
+            <div class="delete-question">
+                آیا از حذف این هزینه مطمئن هستید؟
+            </div>
+
+
+            <div class="delete-expense-info">
+
+                <div
+                    class="delete-description"
+                    id="deleteExpenseDescription"
+                >
+                    -
+                </div>
+
+
+                <div
+                    class="delete-amount"
+                    id="deleteExpenseAmount"
+                >
+                    -
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="modal-actions">
+
+            <button
+                type="button"
+                class="secondary-button"
+                id="cancelDeleteButton"
+            >
+                انصراف
+            </button>
+
+
+            <button
+                type="button"
+                class="delete-confirm-button"
+                id="confirmDeleteButton"
+            >
+                حذف هزینه
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- TOAST -->
+<!-- ===================================================== -->
+
+<div
+    class="toast"
+    id="toast"
+>
+    پیام
+</div>
+
+
+<script src="/static/app.js"></script>
+
+</body>
+</html>
