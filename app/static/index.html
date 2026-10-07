@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fa" dir="rtl">
 
@@ -119,6 +118,7 @@
         <div class="section-header">
 
             <div>
+
                 <div class="section-title">
                     خلاصه ماه
                 </div>
@@ -126,6 +126,7 @@
                 <div class="section-subtitle">
                     وضعیت هزینه‌های این ماه
                 </div>
+
             </div>
 
             <button
@@ -140,6 +141,8 @@
 
 
         <div class="summary-grid">
+
+            <!-- TOTAL -->
 
             <div class="summary-card">
 
@@ -160,6 +163,8 @@
 
             </div>
 
+
+            <!-- DAILY AVERAGE -->
 
             <div class="summary-card">
 
@@ -182,6 +187,24 @@
 
         </div>
 
+
+        <!-- ================= MONTH COMPARISON ================= -->
+
+        <div class="monthly-comparison">
+
+            <div class="comparison-label">
+                مقایسه با ماه قبل
+            </div>
+
+            <div
+                id="monthlyComparison"
+                class="comparison-value neutral"
+            >
+                در حال دریافت...
+            </div>
+
+        </div>
+
     </section>
 
 
@@ -192,6 +215,7 @@
         <div class="section-header">
 
             <div>
+
                 <div class="section-title">
                     دسته‌بندی هزینه‌ها
                 </div>
@@ -199,6 +223,7 @@
                 <div class="section-subtitle">
                     بیشترین هزینه‌ها
                 </div>
+
             </div>
 
         </div>
@@ -215,6 +240,23 @@
 
         </div>
 
+
+        <!-- ================= CATEGORY CHART ================= -->
+
+        <div class="category-chart-wrapper">
+
+            <div class="category-chart-title">
+                توزیع هزینه‌ها
+            </div>
+
+            <div class="category-chart-container">
+
+                <canvas id="categoryChart"></canvas>
+
+            </div>
+
+        </div>
+
     </section>
 
 
@@ -225,6 +267,7 @@
         <div class="section-header">
 
             <div>
+
                 <div class="section-title">
                     هزینه‌های اخیر
                 </div>
@@ -232,6 +275,7 @@
                 <div class="section-subtitle">
                     هزینه‌های ثبت‌شده امروز
                 </div>
+
             </div>
 
         </div>
@@ -308,9 +352,9 @@
 </div>
 
 
-<!-- ===================================================== -->
-<!-- CONFIRMATION MODAL -->
-<!-- ===================================================== -->
+<!-- =====================================================
+     CONFIRMATION MODAL
+     ===================================================== -->
 
 <div
     class="modal-overlay hidden"
@@ -341,6 +385,7 @@
             <div class="confirmation-icon">
                 💰
             </div>
+
 
             <div
                 class="confirmation-description"
@@ -401,9 +446,9 @@
 </div>
 
 
-<!-- ===================================================== -->
-<!-- EDIT EXPENSE MODAL -->
-<!-- ===================================================== -->
+<!-- =====================================================
+     EDIT EXPENSE MODAL
+     ===================================================== -->
 
 <div
     class="modal-overlay hidden"
@@ -505,9 +550,9 @@
 </div>
 
 
-<!-- ===================================================== -->
-<!-- DELETE EXPENSE MODAL -->
-<!-- ===================================================== -->
+<!-- =====================================================
+     DELETE EXPENSE MODAL
+     ===================================================== -->
 
 <div
     class="modal-overlay hidden"
@@ -593,9 +638,9 @@
 </div>
 
 
-<!-- ===================================================== -->
-<!-- TOAST -->
-<!-- ===================================================== -->
+<!-- =====================================================
+     TOAST
+     ===================================================== -->
 
 <div
     class="toast"
@@ -605,7 +650,13 @@
 </div>
 
 
+<!-- =====================================================
+     SCRIPTS
+     ===================================================== -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/app.js"></script>
 
 </body>
+
 </html>

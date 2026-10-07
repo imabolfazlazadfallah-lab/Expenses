@@ -1,16 +1,17 @@
-
-// =====================================================
-// GLOBAL VARIABLES
-// =====================================================
+/* =====================================================
+   GLOBAL VARIABLES
+   ===================================================== */
 
 let currentConfirmationId = null;
 let currentEditExpenseId = null;
 let currentDeleteExpenseId = null;
 
+let categoryChart = null;
 
-// =====================================================
-// FORMAT NUMBER
-// =====================================================
+
+/* =====================================================
+   FORMAT NUMBER
+   ===================================================== */
 
 function formatNumber(number) {
 
@@ -22,9 +23,9 @@ function formatNumber(number) {
 }
 
 
-// =====================================================
-// FORMAT TOMAN
-// =====================================================
+/* =====================================================
+   FORMAT TOMAN
+   ===================================================== */
 
 function formatToman(amount) {
 
@@ -32,38 +33,40 @@ function formatToman(amount) {
 }
 
 
-// =====================================================
-// CATEGORY ICON
-// =====================================================
+/* =====================================================
+   PERSIAN DIGITS
+   ===================================================== */
+
+function toPersianDigits(value) {
+
+    return String(value)
+        .replace(
+            /\d/g,
+            digit => "۰۱۲۳۴۵۶۷۸۹"[digit]
+        );
+}
+
+
+/* =====================================================
+   CATEGORY ICON
+   ===================================================== */
 
 function categoryIcon(categoryName) {
 
     const icons = {
 
         "غذا": "🍔",
-
         "حمل و نقل": "🚕",
-
         "خودرو": "🚗",
-
         "خانه": "🏠",
-
         "خرید": "🛒",
-
         "درمان": "💊",
-
         "قبوض": "💡",
-
         "موبایل و اینترنت": "📱",
-
         "آموزش": "🎓",
-
         "پوشاک": "👕",
-
         "تفریح": "🎮",
-
         "سفر": "✈️",
-
         "سایر": "📦"
 
     };
@@ -71,9 +74,10 @@ function categoryIcon(categoryName) {
     return icons[categoryName] || "📦";
 }
 
-// =====================================================
-// ESCAPE HTML
-// =====================================================
+
+/* =====================================================
+   ESCAPE HTML
+   ===================================================== */
 
 function escapeHtml(value) {
 
@@ -90,15 +94,20 @@ function escapeHtml(value) {
 }
 
 
-// =====================================================
-// TOAST
-// =====================================================
+/* =====================================================
+   TOAST
+   ===================================================== */
 
 let toastTimer = null;
 
 function showToast(message) {
 
-    const toast = document.getElementById("toast");
+    const toast =
+        document.getElementById("toast");
+
+    if (!toast) {
+        return;
+    }
 
     toast.textContent = message;
 
@@ -114,43 +123,54 @@ function showToast(message) {
 }
 
 
-// =====================================================
-// TODAY GREGORIAN
-// =====================================================
+/* =====================================================
+   TODAY GREGORIAN
+   ===================================================== */
 
 function getTodayGregorian() {
 
     const now = new Date();
 
-    const year = now.getFullYear();
+    const year =
+        now.getFullYear();
 
-    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(2, "0");
 
-    const day = String(now.getDate()).padStart(2, "0");
+    const day =
+        String(
+            now.getDate()
+        ).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
 }
 
 
-// =====================================================
-// MONTH START
-// =====================================================
+/* =====================================================
+   MONTH START
+   ===================================================== */
 
 function getMonthStartGregorian() {
 
     const now = new Date();
 
-    const year = now.getFullYear();
+    const year =
+        now.getFullYear();
 
-    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const month =
+        String(
+            now.getMonth() + 1
+        ).padStart(2, "0");
 
     return `${year}-${month}-01`;
 }
 
 
-// =====================================================
-// PERSIAN DATE
-// =====================================================
+/* =====================================================
+   PERSIAN DATE
+   ===================================================== */
 
 function toPersianDate(dateString) {
 
@@ -158,9 +178,14 @@ function toPersianDate(dateString) {
         return "";
     }
 
-    const date = new Date(dateString);
+    const date =
+        new Date(dateString);
 
-    if (Number.isNaN(date.getTime())) {
+    if (
+        Number.isNaN(
+            date.getTime()
+        )
+    ) {
         return dateString;
     }
 
@@ -175,27 +200,39 @@ function toPersianDate(dateString) {
 }
 
 
-// =====================================================
-// LOAD TODAY DATE
-// =====================================================
+/* =====================================================
+   LOAD TODAY DATE
+   ===================================================== */
 
 function loadTodayDate() {
 
-    const element = document.getElementById("todayDate");
+    const element =
+        document.getElementById(
+            "todayDate"
+        );
+
+    if (!element) {
+        return;
+    }
 
     element.textContent =
-        "امروز " + toPersianDate(getTodayGregorian());
+        "امروز " +
+        toPersianDate(
+            getTodayGregorian()
+        );
 }
 
 
-// =====================================================
-// LOAD TODAY SUMMARY
-// =====================================================
+/* =====================================================
+   LOAD TODAY SUMMARY
+   ===================================================== */
 
 async function loadTodaySummary() {
 
     const todayTotal =
-        document.getElementById("todayTotal");
+        document.getElementById(
+            "todayTotal"
+        );
 
     if (!todayTotal) {
         return;
@@ -211,7 +248,8 @@ async function loadTodaySummary() {
         if (!response.ok) {
 
             throw new Error(
-                "HTTP " + response.status
+                "HTTP " +
+                response.status
             );
         }
 
@@ -223,7 +261,9 @@ async function loadTodaySummary() {
             data
         );
 
-        if (data.status !== "success") {
+        if (
+            data.status !== "success"
+        ) {
 
             throw new Error(
                 data.message ||
@@ -233,7 +273,10 @@ async function loadTodaySummary() {
 
         todayTotal.textContent =
             formatToman(
-                Number(data.total_amount || 0)
+                Number(
+                    data.total_amount ||
+                    0
+                )
             );
 
     } catch (error) {
@@ -244,42 +287,51 @@ async function loadTodaySummary() {
         );
 
         todayTotal.textContent =
-            "0 تومان";
+            "۰ تومان";
     }
 }
-// =====================================================
-// LOAD MONTHLY SUMMARY
-// =====================================================
+
+
+/* =====================================================
+   LOAD MONTHLY SUMMARY
+   ===================================================== */
 
 async function loadMonthlySummary() {
 
     const monthlyTotalElement =
-        document.getElementById("monthlyTotal");
+        document.getElementById(
+            "monthlyTotal"
+        );
 
     const monthlyAverageElement =
-        document.getElementById("monthlyAverage");
+        document.getElementById(
+            "monthlyAverage"
+        );
 
-    if (!monthlyTotalElement || !monthlyAverageElement) {
+    const monthlyComparisonElement =
+        document.getElementById(
+            "monthlyComparison"
+        );
+
+    if (
+        !monthlyTotalElement ||
+        !monthlyAverageElement
+    ) {
         return;
     }
 
     try {
 
-        const monthStart =
-            getMonthStartGregorian();
-
-        const today =
-            getTodayGregorian();
-
         const response =
             await fetch(
-                `/api/expenses/?from_date=${monthStart}&to_date=${today}`
+                "/api/expenses/summary/month"
             );
 
         if (!response.ok) {
 
             throw new Error(
-                "HTTP " + response.status
+                "HTTP " +
+                response.status
             );
         }
 
@@ -287,72 +339,155 @@ async function loadMonthlySummary() {
             await response.json();
 
         console.log(
-            "Monthly Summary Data:",
+            "Monthly Summary:",
             data
         );
 
-        /*
-         * API ممکن است لیست هزینه‌ها را
-         * مستقیماً یا داخل expenses برگرداند.
-         */
+        if (
+            data.status !== "success"
+        ) {
 
-        const expenses =
-            data.expenses ||
-            data.items ||
-            data ||
-            [];
-
-        if (!Array.isArray(expenses)) {
-
-            monthlyTotalElement.textContent =
-                "0 تومان";
-
-            monthlyAverageElement.textContent =
-                "0 تومان";
-
-            return;
+            throw new Error(
+                data.message ||
+                "خطا در دریافت خلاصه ماه"
+            );
         }
 
-        let total = 0;
 
-        expenses.forEach(expense => {
+        /* =================================================
+           DATA
+        ================================================= */
 
-            total +=
-                Number(
-                    expense.amount || 0
-                );
+        const currentMonth =
+            data.current_month || {};
 
-        });
+        const previousMonth =
+            data.previous_month || {};
 
-        /*
-         * تعداد روزهای گذشته ماه
-         */
+        const comparison =
+            data.comparison || {};
 
-        const todayDate =
-            new Date();
 
-        const year =
-            todayDate.getFullYear();
+        const currentTotal =
+            Number(
+                currentMonth.total_amount || 0
+            );
 
-        const month =
-            todayDate.getMonth();
 
-        const day =
-            todayDate.getDate();
+        const averageDaily =
+            Number(
+                currentMonth.average_daily || 0
+            );
 
-        const daysPassed =
-            day;
 
-        const average =
-            daysPassed > 0
-                ? Math.round(total / daysPassed)
-                : 0;
+        const previousTotal =
+            Number(
+                previousMonth.total_amount || 0
+            );
+
+
+        const percentage =
+            Number(
+                comparison.percentage || 0
+            );
+
+
+        /* =================================================
+           CURRENT MONTH TOTAL
+        ================================================= */
 
         monthlyTotalElement.textContent =
-            formatToman(total);
+            formatToman(
+                currentTotal
+            );
+
+
+        /* =================================================
+           DAILY AVERAGE
+        ================================================= */
 
         monthlyAverageElement.textContent =
-            formatToman(average);
+            formatToman(
+                averageDaily
+            );
+
+
+        /* =================================================
+           MONTH COMPARISON
+        ================================================= */
+
+        if (
+            monthlyComparisonElement
+        ) {
+
+            if (
+                previousTotal === 0
+            ) {
+
+                if (
+                    currentTotal === 0
+                ) {
+
+                    monthlyComparisonElement.textContent =
+                        "بدون هزینه";
+
+                } else {
+
+                    monthlyComparisonElement.textContent =
+                        "ماه قبل هزینه‌ای ثبت نشده";
+                }
+
+                monthlyComparisonElement.className =
+                    "comparison-value neutral";
+
+            }
+
+            else {
+
+                const absolutePercentage =
+                    Math.abs(
+                        percentage
+                    );
+
+
+                const percentText =
+                    toPersianDigits(
+                        absolutePercentage
+                    );
+
+
+                if (
+                    percentage > 0
+                ) {
+
+                    monthlyComparisonElement.textContent =
+                        `↑ ${percentText}٪ بیشتر از ماه قبل`;
+
+                    monthlyComparisonElement.className =
+                        "comparison-value increase";
+                }
+
+                else if (
+                    percentage < 0
+                ) {
+
+                    monthlyComparisonElement.textContent =
+                        `↓ ${percentText}٪ کمتر از ماه قبل`;
+
+                    monthlyComparisonElement.className =
+                        "comparison-value decrease";
+                }
+
+                else {
+
+                    monthlyComparisonElement.textContent =
+                        "→ بدون تغییر نسبت به ماه قبل";
+
+                    monthlyComparisonElement.className =
+                        "comparison-value neutral";
+                }
+            }
+        }
 
     } catch (error) {
 
@@ -361,22 +496,59 @@ async function loadMonthlySummary() {
             error
         );
 
+
         monthlyTotalElement.textContent =
-            "0 تومان";
+            "۰ تومان";
+
 
         monthlyAverageElement.textContent =
-            "0 تومان";
+            "۰ تومان";
+
+
+        if (
+            monthlyComparisonElement
+        ) {
+
+            monthlyComparisonElement.textContent =
+                "خطا در دریافت اطلاعات";
+
+            monthlyComparisonElement.className =
+                "comparison-value neutral";
+        }
     }
 }
 
-// =====================================================
-// LOAD CATEGORIES
-// =====================================================
+
+/* =====================================================
+   LOAD CATEGORIES
+   ===================================================== */
+
+/*
+ * نکته:
+ *
+ * قبلاً این قسمت از:
+ *
+ * /api/expenses/summary/categories
+ *
+ * استفاده می‌کرد.
+ *
+ * ولی چون می‌خواهیم کارت‌های کوچک فقط ماه جاری را
+ * نشان بدهند، از لیست هزینه‌های ماه جاری استفاده
+ * می‌کنیم و دسته‌ها را همینجا محاسبه می‌کنیم.
+ *
+ * ظاهر کارت‌ها و HTML قبلی کاملاً حفظ شده است.
+ */
 
 async function loadCategories() {
 
     const container =
-        document.getElementById("categoryList");
+        document.getElementById(
+            "categoryList"
+        );
+
+    if (!container) {
+        return;
+    }
 
     container.innerHTML = `
         <div class="loading">
@@ -386,37 +558,206 @@ async function loadCategories() {
 
     try {
 
+        const monthStart =
+            getMonthStartGregorian();
+
+        const today =
+            getTodayGregorian();
+
+
         const response =
             await fetch(
-                "/api/expenses/summary/categories"
+                `/api/expenses/?from_date=${encodeURIComponent(
+                    monthStart
+                )}&to_date=${encodeURIComponent(
+                    today
+                )}`
             );
 
+
         if (!response.ok) {
+
             throw new Error(
-                "HTTP " + response.status
+                "HTTP " +
+                response.status
             );
         }
+
 
         const data =
             await response.json();
 
+
         console.log(
-            "Category Summary:",
+            "Monthly Expenses For Categories:",
             data
         );
 
-        if (data.status !== "success") {
+
+        if (
+            data.status !== "success"
+        ) {
 
             throw new Error(
                 data.message ||
-                "خطا در دریافت آمار دسته‌بندی‌ها"
+                "خطا در دریافت هزینه‌های ماه جاری"
             );
         }
 
-        const categories =
-            data.categories || [];
 
-        if (categories.length === 0) {
+        const expenses =
+            data.expenses || [];
+
+
+        /*
+         * ساخت آمار دسته‌بندی
+         */
+
+        const categoryMap = {};
+
+
+        expenses.forEach(
+            expense => {
+
+                const category =
+                    expense.category ||
+                    {};
+
+
+                const categoryName =
+                    category.name ||
+                    category.category_name ||
+                    expense.category_name ||
+                    "سایر";
+
+
+                const amount =
+                    Number(
+                        expense.amount || 0
+                    );
+
+
+                if (
+                    !categoryMap[
+                        categoryName
+                    ]
+                ) {
+
+                    categoryMap[
+                        categoryName
+                    ] = {
+
+                        category_name:
+                            categoryName,
+
+                        total_amount:
+                            0,
+
+                        expense_count:
+                            0,
+
+                        icon:
+                            category.icon ||
+                            categoryIcon(
+                                categoryName
+                            )
+                    };
+                }
+
+
+                categoryMap[
+                    categoryName
+                ].total_amount +=
+                    amount;
+
+
+                categoryMap[
+                    categoryName
+                ].expense_count +=
+                    1;
+
+            }
+        );
+
+
+        const categories =
+            Object.values(
+                categoryMap
+            );
+
+
+        /*
+         * مجموع کل
+         */
+
+        const totalAmount =
+            categories.reduce(
+                (
+                    sum,
+                    category
+                ) =>
+                    sum +
+                    Number(
+                        category.total_amount ||
+                        0
+                    ),
+                0
+            );
+
+
+        /*
+         * محاسبه درصد هر دسته
+         */
+
+        categories.forEach(
+            category => {
+
+                category.percentage =
+                    totalAmount > 0
+                        ? (
+                            Number(
+                                category.total_amount
+                            ) /
+                            totalAmount
+                        ) *
+                        100
+                        : 0;
+
+            }
+        );
+
+
+        /*
+         * مرتب‌سازی بر اساس مبلغ
+         */
+
+        categories.sort(
+            (a, b) =>
+                Number(
+                    b.total_amount
+                ) -
+                Number(
+                    a.total_amount
+                )
+        );
+
+
+        /*
+         * رسم نمودار
+         */
+
+        renderCategoryChart(
+            categories
+        );
+
+
+        /*
+         * اگر دسته‌بندی وجود نداشت
+         */
+
+        if (
+            categories.length === 0
+        ) {
 
             container.innerHTML = `
                 <div class="empty-state">
@@ -426,7 +767,7 @@ async function loadCategories() {
                     </div>
 
                     <div>
-                        هنوز هزینه‌ای ثبت نشده است.
+                        هنوز هزینه‌ای در ماه جاری ثبت نشده است.
                     </div>
 
                 </div>
@@ -435,89 +776,137 @@ async function loadCategories() {
             return;
         }
 
+
         container.innerHTML = "";
 
-        categories.forEach(category => {
 
-            const item =
-                document.createElement("div");
+        /*
+         * ساخت کارت دسته‌بندی‌ها
+         */
 
-            item.className =
-                "category-summary-item";
+        categories.forEach(
+            category => {
 
-            const icon =
-                category.icon ||
-                categoryIcon(
-                    category.category_name
-                );
+                const item =
+                    document.createElement(
+                        "div"
+                    );
 
-            const amount =
-                formatToman(
-                    category.total_amount
-                );
+                item.className =
+                    "category-summary-item";
 
-            const percentage =
-                Number(
-                    category.percentage || 0
-                );
 
-            item.innerHTML = `
+                const icon =
+                    category.icon ||
+                    categoryIcon(
+                        category.category_name
+                    );
 
-                <div class="category-summary-header">
 
-                    <div class="category-summary-title">
+                const amount =
+                    formatToman(
+                        category.total_amount
+                    );
 
-                        <div class="category-summary-icon">
-                            ${escapeHtml(icon)}
-                        </div>
 
-                        <div>
-                            <div class="category-summary-name">
-                                ${escapeHtml(
-                                    category.category_name
-                                )}
-                            </div>
+                const percentage =
+                    Number(
+                        category.percentage ||
+                        0
+                    );
 
-                            <div class="category-summary-count">
-                                ${category.expense_count}
-                                هزینه
-                            </div>
-                        </div>
 
-                    </div>
-
-                    <div class="category-summary-amount">
-                        ${amount}
-                    </div>
-
-                </div>
-
-                <div class="category-progress">
+                item.innerHTML = `
 
                     <div
-                        class="category-progress-bar"
-                        style="width:${percentage}%"
-                    ></div>
+                        class="category-summary-header"
+                    >
 
-                </div>
+                        <div
+                            class="category-summary-title"
+                        >
 
-                <div class="category-summary-footer">
+                            <div
+                                class="category-summary-icon"
+                            >
+                                ${escapeHtml(icon)}
+                            </div>
 
-                    <span>
-                        ${percentage}٪
-                    </span>
+                            <div>
 
-                    <span>
-                        سهم از کل هزینه‌ها
-                    </span>
+                                <div
+                                    class="category-summary-name"
+                                >
+                                    ${escapeHtml(
+                                        category.category_name
+                                    )}
+                                </div>
 
-                </div>
+                                <div
+                                    class="category-summary-count"
+                                >
+                                    ${toPersianDigits(
+                                        category.expense_count || 0
+                                    )}
+                                    هزینه
+                                </div>
 
-            `;
+                            </div>
 
-            container.appendChild(item);
+                        </div>
 
-        });
+
+                        <div
+                            class="category-summary-amount"
+                        >
+                            ${amount}
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="category-progress"
+                    >
+
+                        <div
+                            class="category-progress-bar"
+                            style="width:${Math.min(
+                                Math.max(
+                                    percentage,
+                                    0
+                                ),
+                                100
+                            )}%"
+                        ></div>
+
+                    </div>
+
+
+                    <div
+                        class="category-summary-footer"
+                    >
+
+                        <span>
+                            ${toPersianDigits(
+                                percentage.toFixed(1)
+                            )}٪
+                        </span>
+
+                        <span>
+                            سهم از کل هزینه‌ها
+                        </span>
+
+                    </div>
+
+                `;
+
+                container.appendChild(
+                    item
+                );
+
+            }
+        );
 
     } catch (error) {
 
@@ -549,14 +938,183 @@ async function loadCategories() {
         `;
     }
 }
-// =====================================================
-// LOAD EXPENSES
-// =====================================================
+
+
+/* =====================================================
+   RENDER CATEGORY CHART
+   ===================================================== */
+
+function renderCategoryChart(
+    categories
+) {
+
+    const canvas =
+        document.getElementById(
+            "categoryChart"
+        );
+
+    if (!canvas) {
+        return;
+    }
+
+
+    if (categoryChart) {
+
+        categoryChart.destroy();
+
+        categoryChart = null;
+    }
+
+
+    if (
+        !categories ||
+        categories.length === 0
+    ) {
+        return;
+    }
+
+
+    if (
+        typeof Chart === "undefined"
+    ) {
+
+        console.error(
+            "Chart.js is not loaded."
+        );
+
+        return;
+    }
+
+
+    const labels =
+        categories.map(
+            category =>
+                category.category_name
+        );
+
+
+    const values =
+        categories.map(
+            category =>
+                Number(
+                    category.total_amount ||
+                    0
+                )
+        );
+
+
+    categoryChart =
+        new Chart(
+            canvas,
+            {
+
+                type: "doughnut",
+
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+                            data: values,
+
+                            borderWidth: 2
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio:
+                        false,
+
+                    cutout: "65%",
+
+
+                    plugins: {
+
+                        legend: {
+
+                            position:
+                                "bottom",
+
+                            rtl: true,
+
+                            labels: {
+
+                                usePointStyle:
+                                    true,
+
+                                padding: 15,
+
+                                font: {
+
+                                    family:
+                                        "Vazirmatn, Tahoma, Arial"
+                                }
+
+                            }
+
+                        },
+
+
+                        tooltip: {
+
+                            rtl: true,
+
+                            callbacks: {
+
+                                label:
+                                    function(
+                                        context
+                                    ) {
+
+                                        const value =
+                                            context.raw ||
+                                            0;
+
+                                        return (
+                                            " " +
+                                            formatToman(
+                                                value
+                                            )
+                                        );
+                                    }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+}
+
+
+/* =====================================================
+   LOAD EXPENSES
+   ===================================================== */
 
 async function loadExpenses() {
 
     const container =
-        document.getElementById("expenseList");
+        document.getElementById(
+            "expenseList"
+        );
+
+    if (!container) {
+        return;
+    }
 
     container.innerHTML = `
         <div class="loading">
@@ -565,12 +1123,28 @@ async function loadExpenses() {
     `;
 
 
+    /*
+     * فقط ماه جاری
+     */
+
+    const monthStart =
+        getMonthStartGregorian();
+
+    const today =
+        getTodayGregorian();
+
+
     try {
 
-        const response = await fetch(
-            "/api/expenses/?to_date=" +
-            getTodayGregorian()
-        );
+        const response =
+            await fetch(
+                `/api/expenses/?from_date=${encodeURIComponent(
+                    monthStart
+                )}&to_date=${encodeURIComponent(
+                    today
+                )}`
+            );
+
 
         const data =
             await response.json();
@@ -582,7 +1156,8 @@ async function loadExpenses() {
         ) {
 
             throw new Error(
-                data.message || "Expense API error"
+                data.message ||
+                "Expense API error"
             );
         }
 
@@ -603,7 +1178,7 @@ async function loadExpenses() {
                     </div>
 
                     <div>
-                        امروز هنوز هزینه‌ای ثبت نشده است.
+                        در ماه جاری هنوز هزینه‌ای ثبت نشده است.
                     </div>
 
                 </div>
@@ -613,125 +1188,184 @@ async function loadExpenses() {
         }
 
 
-        data.expenses.forEach(expense => {
+        /*
+         * هزینه‌های ماه جاری
+         */
 
-            const item =
-                document.createElement("div");
+        data.expenses.forEach(
+            expense => {
 
-            item.className =
-                "expense-item";
+                const item =
+                    document.createElement(
+                        "div"
+                    );
 
-
-            const category =
-                expense.category || {};
-
-
-            const categoryName =
-                category.name ||
-                category.category_name ||
-                "سایر";
+                item.className =
+                    "expense-item";
 
 
-            const categoryId =
-                category.id ||
-                category.category_id ||
-                null;
+                /*
+                 * Category
+                 */
+
+                const category =
+                    expense.category ||
+                    {};
 
 
-            const description =
-                expense.description ||
-                "بدون توضیح";
+                const categoryName =
+                    category.name ||
+                    category.category_name ||
+                    expense.category_name ||
+                    "سایر";
 
 
-            const amount =
-                expense.amount || 0;
+                /*
+                 * Description
+                 */
+
+                const description =
+                    expense.description ||
+                    "بدون توضیح";
 
 
-            const expenseDate =
-                expense.expense_date || "";
+                /*
+                 * Amount
+                 */
+
+                const amount =
+                    expense.amount ||
+                    0;
 
 
-            item.innerHTML = `
+                /*
+                 * Date
+                 */
 
-                <div class="expense-main">
-
-                    <div class="expense-icon">
-
-                        ${categoryIcon(categoryName)}
-
-                    </div>
+                const expenseDate =
+                    expense.expense_date ||
+                    "";
 
 
-                    <div class="expense-info">
+                /*
+                 * Expense ID
+                 */
 
-                        <div class="expense-description">
+                const expenseId =
+                    expense.expense_id;
 
-                            ${escapeHtml(description)}
 
+                item.innerHTML = `
+
+                    <div
+                        class="expense-main"
+                    >
+
+                        <div
+                            class="expense-icon"
+                        >
+                            ${categoryIcon(
+                                categoryName
+                            )}
                         </div>
 
 
-                        <div class="expense-meta">
+                        <div
+                            class="expense-info"
+                        >
 
-                            <span>
-                                ${escapeHtml(categoryName)}
-                            </span>
+                            <div
+                                class="expense-description"
+                            >
+                                ${escapeHtml(
+                                    description
+                                )}
+                            </div>
 
-                            <span>
-                                ${toPersianDate(expenseDate)}
-                            </span>
+
+                            <div
+                                class="expense-meta"
+                            >
+
+                                <span>
+                                    ${escapeHtml(
+                                        categoryName
+                                    )}
+                                </span>
+
+                                <span>
+                                    ${toPersianDate(
+                                        expenseDate
+                                    )}
+                                </span>
+
+                            </div>
 
                         </div>
 
                     </div>
 
-                </div>
+
+                    <div
+                        class="expense-right"
+                    >
+
+                        <div
+                            class="expense-amount"
+                        >
+                            ${formatToman(
+                                amount
+                            )}
+                        </div>
 
 
-                <div class="expense-right">
+                        <div
+                            class="expense-actions"
+                        >
 
-                    <div class="expense-amount">
+                            <button
+                                type="button"
+                                class="expense-edit-button"
+                                title="ویرایش"
+                                onclick="openEditExpense(${Number(
+                                    expenseId
+                                )})"
+                            >
+                                ✏️
+                            </button>
 
-                        ${formatToman(amount)}
+
+                            <button
+                                type="button"
+                                class="expense-delete-button"
+                                title="حذف"
+                                onclick="openDeleteExpense(${Number(
+                                    expenseId
+                                )})"
+                            >
+                                🗑️
+                            </button>
+
+                        </div>
 
                     </div>
 
-
-                    <div class="expense-actions">
-
-                        <button
-                            type="button"
-                            class="expense-edit-button"
-                            title="ویرایش"
-                            onclick="openEditExpense(${expense.expense_id})"
-                        >
-                            ✏️
-                        </button>
+                `;
 
 
-                        <button
-                            type="button"
-                            class="expense-delete-button"
-                            title="حذف"
-                            onclick="openDeleteExpense(${expense.expense_id})"
-                        >
-                            🗑️
-                        </button>
+                container.appendChild(
+                    item
+                );
 
-                    </div>
-
-                </div>
-
-            `;
-
-
-            container.appendChild(item);
-
-        });
+            }
+        );
 
     } catch (error) {
 
-        console.error("loadExpenses:", error);
+        console.error(
+            "loadExpenses:",
+            error
+        );
 
         container.innerHTML = `
             <div class="empty-state">
@@ -742,14 +1376,20 @@ async function loadExpenses() {
 }
 
 
-// =====================================================
-// SUBMIT EXPENSE TEXT
-// =====================================================
+/* =====================================================
+   SUBMIT EXPENSE TEXT
+   ===================================================== */
 
 async function submitExpenseText() {
 
     const input =
-        document.getElementById("expenseText");
+        document.getElementById(
+            "expenseText"
+        );
+
+    if (!input) {
+        return;
+    }
 
     const text =
         input.value.trim();
@@ -785,14 +1425,17 @@ async function submitExpenseText() {
             await fetch(
                 "/api/expenses/text",
                 {
+
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
                     },
 
                     body: JSON.stringify({
+
                         text: text
                     })
                 }
@@ -807,6 +1450,7 @@ async function submitExpenseText() {
 
             showToast(
                 data.message ||
+                data.detail ||
                 "خطا در ثبت هزینه"
             );
 
@@ -819,14 +1463,17 @@ async function submitExpenseText() {
             "confirmation_required"
         ) {
 
-            showConfirmation(data);
+            showConfirmation(
+                data
+            );
 
             return;
         }
 
 
         if (
-            data.status === "success"
+            data.status ===
+            "success"
         ) {
 
             showToast(
@@ -849,7 +1496,10 @@ async function submitExpenseText() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "submitExpenseText ERROR:",
+            error
+        );
 
         showToast(
             "خطا در ارتباط با سرور"
@@ -865,9 +1515,9 @@ async function submitExpenseText() {
 }
 
 
-// =====================================================
-// SHOW CONFIRMATION
-// =====================================================
+/* =====================================================
+   SHOW CONFIRMATION
+   ===================================================== */
 
 function showConfirmation(data) {
 
@@ -888,7 +1538,9 @@ function showConfirmation(data) {
     document.getElementById(
         "confirmationAmount"
     ).textContent =
-        formatToman(expense.amount || 0);
+        formatToman(
+            expense.amount || 0
+        );
 
 
     document.getElementById(
@@ -900,32 +1552,42 @@ function showConfirmation(data) {
     document.getElementById(
         "confirmationDate"
     ).textContent =
-        toPersianDate(expense.expense_date);
+        toPersianDate(
+            expense.expense_date
+        );
 
 
     document
-        .getElementById("confirmationModal")
-        .classList.remove("hidden");
+        .getElementById(
+            "confirmationModal"
+        )
+        .classList.remove(
+            "hidden"
+        );
 }
 
 
-// =====================================================
-// CLOSE CONFIRMATION
-// =====================================================
+/* =====================================================
+   CLOSE CONFIRMATION
+   ===================================================== */
 
 function closeConfirmation() {
 
     document
-        .getElementById("confirmationModal")
-        .classList.add("hidden");
+        .getElementById(
+            "confirmationModal"
+        )
+        .classList.add(
+            "hidden"
+        );
 
     currentConfirmationId = null;
 }
 
 
-// =====================================================
-// CONFIRM EXPENSE
-// =====================================================
+/* =====================================================
+   CONFIRM EXPENSE
+   ===================================================== */
 
 async function confirmExpense() {
 
@@ -952,9 +1614,11 @@ async function confirmExpense() {
             await fetch(
                 "/api/expenses/confirm",
                 {
+
                     method: "POST",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
                     },
@@ -963,7 +1627,6 @@ async function confirmExpense() {
 
                         confirmation_id:
                             currentConfirmationId
-
                     })
                 }
             );
@@ -974,7 +1637,8 @@ async function confirmExpense() {
 
 
         if (
-            data.status === "success"
+            data.status ===
+            "success"
         ) {
 
             closeConfirmation();
@@ -1002,7 +1666,10 @@ async function confirmExpense() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "confirmExpense ERROR:",
+            error
+        );
 
         showToast(
             "خطا در ثبت هزینه"
@@ -1018,9 +1685,9 @@ async function confirmExpense() {
 }
 
 
-// =====================================================
-// CANCEL EXPENSE
-// =====================================================
+/* =====================================================
+   CANCEL EXPENSE
+   ===================================================== */
 
 async function cancelExpense() {
 
@@ -1034,9 +1701,11 @@ async function cancelExpense() {
         await fetch(
             "/api/expenses/cancel",
             {
+
                 method: "POST",
 
                 headers: {
+
                     "Content-Type":
                         "application/json"
                 },
@@ -1045,14 +1714,16 @@ async function cancelExpense() {
 
                     confirmation_id:
                         currentConfirmationId
-
                 })
             }
         );
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "cancelExpense ERROR:",
+            error
+        );
     }
 
 
@@ -1064,11 +1735,79 @@ async function cancelExpense() {
 }
 
 
-// =====================================================
-// OPEN EDIT EXPENSE
-// =====================================================
+/* =====================================================
+   GET EXPENSE CATEGORY ID
+   ===================================================== */
 
-async function openEditExpense(expenseId) {
+function getExpenseCategoryId(expense) {
+
+    /*
+     * حالت 1:
+     * expense.category.category_id
+     */
+
+    if (
+        expense.category &&
+        expense.category.category_id !==
+            undefined &&
+        expense.category.category_id !==
+            null
+    ) {
+
+        return Number(
+            expense.category.category_id
+        );
+    }
+
+
+    /*
+     * حالت 2:
+     * expense.category.id
+     */
+
+    if (
+        expense.category &&
+        expense.category.id !==
+            undefined &&
+        expense.category.id !==
+            null
+    ) {
+
+        return Number(
+            expense.category.id
+        );
+    }
+
+
+    /*
+     * حالت 3:
+     * expense.category_id
+     */
+
+    if (
+        expense.category_id !==
+            undefined &&
+        expense.category_id !==
+            null
+    ) {
+
+        return Number(
+            expense.category_id
+        );
+    }
+
+
+    return null;
+}
+
+
+/* =====================================================
+   OPEN EDIT EXPENSE
+   ===================================================== */
+
+async function openEditExpense(
+    expenseId
+) {
 
     currentEditExpenseId =
         expenseId;
@@ -1076,10 +1815,20 @@ async function openEditExpense(expenseId) {
 
     try {
 
+        /*
+         * فقط هزینه‌های ماه جاری
+         */
+
         const response =
             await fetch(
-                "/api/expenses/?to_date=" +
-                getTodayGregorian()
+                "/api/expenses/?from_date=" +
+                encodeURIComponent(
+                    getMonthStartGregorian()
+                ) +
+                "&to_date=" +
+                encodeURIComponent(
+                    getTodayGregorian()
+                )
             );
 
 
@@ -1089,7 +1838,8 @@ async function openEditExpense(expenseId) {
 
         if (
             !response.ok ||
-            data.status !== "success"
+            data.status !==
+            "success"
         ) {
 
             showToast(
@@ -1103,8 +1853,12 @@ async function openEditExpense(expenseId) {
         const expense =
             data.expenses.find(
                 item =>
-                    Number(item.expense_id) ===
-                    Number(expenseId)
+                    Number(
+                        item.expense_id
+                    ) ===
+                    Number(
+                        expenseId
+                    )
             );
 
 
@@ -1118,11 +1872,19 @@ async function openEditExpense(expenseId) {
         }
 
 
+        /*
+         * مبلغ
+         */
+
         document.getElementById(
             "editAmount"
         ).value =
             expense.amount;
 
+
+        /*
+         * توضیحات
+         */
 
         document.getElementById(
             "editDescription"
@@ -1130,19 +1892,35 @@ async function openEditExpense(expenseId) {
             expense.description;
 
 
+        /*
+         * تاریخ
+         */
+
         document.getElementById(
             "editDate"
         ).value =
             expense.expense_date;
 
 
+        /*
+         * دسته‌بندی
+         *
+         * اینجا اصلاح اصلی انجام شده:
+         * category.id
+         * category.category_id
+         * expense.category_id
+         */
+
         const selectedCategoryId =
-            expense.category
-                ? (
-                    expense.category.id ||
-                    expense.category.category_id
-                )
-                : null;
+            getExpenseCategoryId(
+                expense
+            );
+
+
+        console.log(
+            "Selected Category ID:",
+            selectedCategoryId
+        );
 
 
         await loadEditCategories(
@@ -1154,12 +1932,17 @@ async function openEditExpense(expenseId) {
             .getElementById(
                 "editExpenseModal"
             )
-            .classList.remove("hidden");
+            .classList.remove(
+                "hidden"
+            );
 
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "openEditExpense ERROR:",
+            error
+        );
 
         showToast(
             "خطا در دریافت اطلاعات هزینه"
@@ -1168,9 +1951,9 @@ async function openEditExpense(expenseId) {
 }
 
 
-// =====================================================
-// LOAD EDIT CATEGORIES
-// =====================================================
+/* =====================================================
+   LOAD EDIT CATEGORIES
+   ===================================================== */
 
 async function loadEditCategories(
     selectedCategoryId = null
@@ -1180,6 +1963,10 @@ async function loadEditCategories(
         document.getElementById(
             "editCategory"
         );
+
+    if (!select) {
+        return;
+    }
 
 
     try {
@@ -1196,7 +1983,8 @@ async function loadEditCategories(
 
         if (
             !response.ok ||
-            data.status !== "success"
+            data.status !==
+            "success"
         ) {
 
             return;
@@ -1219,24 +2007,47 @@ async function loadEditCategories(
                     );
 
 
+                /*
+                 * API دسته‌بندی ممکن است:
+                 *
+                 * category_id
+                 * یا id
+                 */
+
+                const categoryId =
+                    category.category_id ??
+                    category.id;
+
+
+                const categoryName =
+                    category.category_name ??
+                    category.name ??
+                    "بدون نام";
+
+
                 option.value =
-                    category.category_id;
+                    categoryId;
 
 
                 option.textContent =
-                    category.category_name;
+                    categoryName;
 
 
                 if (
-                    selectedCategoryId &&
+                    selectedCategoryId !==
+                        null &&
+                    selectedCategoryId !==
+                        undefined &&
                     Number(
-                        category.category_id
-                    ) === Number(
-                        selectedCategoryId
-                    )
+                        categoryId
+                    ) ===
+                        Number(
+                            selectedCategoryId
+                        )
                 ) {
 
-                    option.selected = true;
+                    option.selected =
+                        true;
                 }
 
 
@@ -1249,14 +2060,17 @@ async function loadEditCategories(
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "loadEditCategories ERROR:",
+            error
+        );
     }
 }
 
 
-// =====================================================
-// CLOSE EDIT
-// =====================================================
+/* =====================================================
+   CLOSE EDIT
+   ===================================================== */
 
 function closeEditExpense() {
 
@@ -1264,16 +2078,19 @@ function closeEditExpense() {
         .getElementById(
             "editExpenseModal"
         )
-        .classList.add("hidden");
+        .classList.add(
+            "hidden"
+        );
 
 
-    currentEditExpenseId = null;
+    currentEditExpenseId =
+        null;
 }
 
 
-// =====================================================
-// SAVE EDIT
-// =====================================================
+/* =====================================================
+   SAVE EDIT
+   ===================================================== */
 
 async function saveEditExpense() {
 
@@ -1366,9 +2183,11 @@ async function saveEditExpense() {
             await fetch(
                 "/api/expenses/edit",
                 {
+
                     method: "PUT",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
                     },
@@ -1385,11 +2204,12 @@ async function saveEditExpense() {
                             description,
 
                         category_id:
-                            Number(categoryId),
+                            Number(
+                                categoryId
+                            ),
 
                         expense_date:
                             expenseDate
-
                     })
                 }
             );
@@ -1400,7 +2220,8 @@ async function saveEditExpense() {
 
 
         if (
-            data.status === "success"
+            data.status ===
+            "success"
         ) {
 
             closeEditExpense();
@@ -1423,7 +2244,10 @@ async function saveEditExpense() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "saveEditExpense ERROR:",
+            error
+        );
 
         showToast(
             "خطا در ویرایش هزینه"
@@ -1439,9 +2263,9 @@ async function saveEditExpense() {
 }
 
 
-// =====================================================
-// OPEN DELETE EXPENSE
-// =====================================================
+/* =====================================================
+   OPEN DELETE EXPENSE
+   ===================================================== */
 
 async function openDeleteExpense(
     expenseId
@@ -1453,10 +2277,20 @@ async function openDeleteExpense(
 
     try {
 
+        /*
+         * فقط ماه جاری
+         */
+
         const response =
             await fetch(
-                "/api/expenses/?to_date=" +
-                getTodayGregorian()
+                "/api/expenses/?from_date=" +
+                encodeURIComponent(
+                    getMonthStartGregorian()
+                ) +
+                "&to_date=" +
+                encodeURIComponent(
+                    getTodayGregorian()
+                )
             );
 
 
@@ -1466,7 +2300,8 @@ async function openDeleteExpense(
 
         if (
             !response.ok ||
-            data.status !== "success"
+            data.status !==
+            "success"
         ) {
 
             showToast(
@@ -1480,8 +2315,12 @@ async function openDeleteExpense(
         const expense =
             data.expenses.find(
                 item =>
-                    Number(item.expense_id) ===
-                    Number(expenseId)
+                    Number(
+                        item.expense_id
+                    ) ===
+                    Number(
+                        expenseId
+                    )
             );
 
 
@@ -1504,19 +2343,26 @@ async function openDeleteExpense(
         document.getElementById(
             "deleteExpenseAmount"
         ).textContent =
-            formatToman(expense.amount);
+            formatToman(
+                expense.amount
+            );
 
 
         document
             .getElementById(
                 "deleteExpenseModal"
             )
-            .classList.remove("hidden");
+            .classList.remove(
+                "hidden"
+            );
 
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "openDeleteExpense ERROR:",
+            error
+        );
 
         showToast(
             "خطا در دریافت اطلاعات هزینه"
@@ -1525,9 +2371,9 @@ async function openDeleteExpense(
 }
 
 
-// =====================================================
-// CLOSE DELETE
-// =====================================================
+/* =====================================================
+   CLOSE DELETE
+   ===================================================== */
 
 function closeDeleteExpense() {
 
@@ -1535,16 +2381,19 @@ function closeDeleteExpense() {
         .getElementById(
             "deleteExpenseModal"
         )
-        .classList.add("hidden");
+        .classList.add(
+            "hidden"
+        );
 
 
-    currentDeleteExpenseId = null;
+    currentDeleteExpenseId =
+        null;
 }
 
 
-// =====================================================
-// DELETE EXPENSE
-// =====================================================
+/* =====================================================
+   DELETE EXPENSE
+   ===================================================== */
 
 async function deleteExpense() {
 
@@ -1571,9 +2420,11 @@ async function deleteExpense() {
             await fetch(
                 "/api/expenses/delete",
                 {
+
                     method: "DELETE",
 
                     headers: {
+
                         "Content-Type":
                             "application/json"
                     },
@@ -1582,7 +2433,6 @@ async function deleteExpense() {
 
                         expense_id:
                             currentDeleteExpenseId
-
                     })
                 }
             );
@@ -1593,7 +2443,8 @@ async function deleteExpense() {
 
 
         if (
-            data.status === "success"
+            data.status ===
+            "success"
         ) {
 
             closeDeleteExpense();
@@ -1617,7 +2468,10 @@ async function deleteExpense() {
 
     } catch (error) {
 
-        console.error(error);
+        console.error(
+            "deleteExpense ERROR:",
+            error
+        );
 
         showToast(
             "خطا در حذف هزینه"
@@ -1633,219 +2487,316 @@ async function deleteExpense() {
 }
 
 
-// =====================================================
-// REFRESH DASHBOARD
-// =====================================================
+/* =====================================================
+   REFRESH DASHBOARD
+   ===================================================== */
 
 async function refreshDashboard() {
 
-    await loadTodayDate();
+    loadTodayDate();
 
-    await loadTodaySummary();
-
-    await loadMonthlySummary();
-
-    await loadCategories();
-
-    await loadExpenses();
+    await Promise.all([
+        loadTodaySummary(),
+        loadMonthlySummary(),
+        loadCategories(),
+        loadExpenses()
+    ]);
 }
 
-// =====================================================
-// EVENTS
-// =====================================================
+
+/* =====================================================
+   EVENTS
+   ===================================================== */
 
 document.addEventListener(
     "DOMContentLoaded",
     () => {
 
-        // ثبت هزینه
-        document
-            .getElementById(
+        /* =================================================
+           ثبت هزینه
+        ================================================= */
+
+        const saveExpenseButton =
+            document.getElementById(
                 "saveExpenseButton"
-            )
-            .addEventListener(
+            );
+
+        if (saveExpenseButton) {
+
+            saveExpenseButton.addEventListener(
                 "click",
                 submitExpenseText
             );
+        }
 
 
-        // Enter
-        document
-            .getElementById(
+        /* =================================================
+           Enter
+        ================================================= */
+
+        const expenseText =
+            document.getElementById(
                 "expenseText"
-            )
-            .addEventListener(
+            );
+
+        if (expenseText) {
+
+            expenseText.addEventListener(
                 "keydown",
                 event => {
 
                     if (
-                        event.key ===
-                        "Enter"
+                        event.key === "Enter"
                     ) {
 
                         event.preventDefault();
 
                         submitExpenseText();
                     }
+
                 }
             );
+        }
 
 
-        // Confirmation
-        document
-            .getElementById(
+        /* =================================================
+           Confirmation
+        ================================================= */
+
+        const confirmExpenseButton =
+            document.getElementById(
                 "confirmExpenseButton"
-            )
-            .addEventListener(
+            );
+
+        if (confirmExpenseButton) {
+
+            confirmExpenseButton.addEventListener(
                 "click",
                 confirmExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const cancelConfirmationButton =
+            document.getElementById(
                 "cancelConfirmationButton"
-            )
-            .addEventListener(
+            );
+
+        if (cancelConfirmationButton) {
+
+            cancelConfirmationButton.addEventListener(
                 "click",
                 cancelExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const closeModalButton =
+            document.getElementById(
                 "closeModalButton"
-            )
-            .addEventListener(
+            );
+
+        if (closeModalButton) {
+
+            closeModalButton.addEventListener(
                 "click",
                 cancelExpense
             );
+        }
 
 
-        // Edit
-        document
-            .getElementById(
+        /* =================================================
+           Edit
+        ================================================= */
+
+        const saveEditButton =
+            document.getElementById(
                 "saveEditButton"
-            )
-            .addEventListener(
+            );
+
+        if (saveEditButton) {
+
+            saveEditButton.addEventListener(
                 "click",
                 saveEditExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const cancelEditButton =
+            document.getElementById(
                 "cancelEditButton"
-            )
-            .addEventListener(
+            );
+
+        if (cancelEditButton) {
+
+            cancelEditButton.addEventListener(
                 "click",
                 closeEditExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const closeEditModalButton =
+            document.getElementById(
                 "closeEditModalButton"
-            )
-            .addEventListener(
+            );
+
+        if (closeEditModalButton) {
+
+            closeEditModalButton.addEventListener(
                 "click",
                 closeEditExpense
             );
+        }
 
 
-        // Delete
-        document
-            .getElementById(
+        /* =================================================
+           Delete
+        ================================================= */
+
+        const confirmDeleteButton =
+            document.getElementById(
                 "confirmDeleteButton"
-            )
-            .addEventListener(
+            );
+
+        if (confirmDeleteButton) {
+
+            confirmDeleteButton.addEventListener(
                 "click",
                 deleteExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const cancelDeleteButton =
+            document.getElementById(
                 "cancelDeleteButton"
-            )
-            .addEventListener(
+            );
+
+        if (cancelDeleteButton) {
+
+            cancelDeleteButton.addEventListener(
                 "click",
                 closeDeleteExpense
             );
+        }
 
 
-        document
-            .getElementById(
+        const closeDeleteModalButton =
+            document.getElementById(
                 "closeDeleteModalButton"
-            )
-            .addEventListener(
+            );
+
+        if (closeDeleteModalButton) {
+
+            closeDeleteModalButton.addEventListener(
                 "click",
                 closeDeleteExpense
             );
+        }
 
 
-        // Refresh
-        document
-            .getElementById(
+        /* =================================================
+           Refresh
+        ================================================= */
+
+        const refreshButton =
+            document.getElementById(
                 "refreshButton"
-            )
-            .addEventListener(
+            );
+
+        if (refreshButton) {
+
+            refreshButton.addEventListener(
                 "click",
                 refreshDashboard
             );
+        }
 
 
-        // Bottom Add
-        document
-            .getElementById(
+        /* =================================================
+           Bottom Add
+        ================================================= */
+
+        const bottomAddButton =
+            document.getElementById(
                 "bottomAddButton"
-            )
-            .addEventListener(
+            );
+
+        if (bottomAddButton) {
+
+            bottomAddButton.addEventListener(
                 "click",
                 () => {
 
-                    document
-                        .getElementById(
+                    const input =
+                        document.getElementById(
                             "expenseText"
-                        )
-                        .focus();
+                        );
+
+                    if (input) {
+
+                        input.focus();
+                    }
+
                 }
             );
+        }
 
 
-        // Voice
-        document
-            .getElementById(
+        /* =================================================
+           Voice
+        ================================================= */
+
+        const voiceButton =
+            document.getElementById(
                 "voiceButton"
-            )
-            .addEventListener(
+            );
+
+        if (voiceButton) {
+
+            voiceButton.addEventListener(
                 "click",
                 () => {
 
                     showToast(
                         "ثبت صوتی را در مرحله بعد فعال می‌کنیم 🎤"
                     );
+
                 }
             );
+        }
 
 
-        // Notification
-        document
-            .getElementById(
+        /* =================================================
+           Notification
+        ================================================= */
+
+        const notificationButton =
+            document.getElementById(
                 "notificationButton"
-            )
-            .addEventListener(
+            );
+
+        if (notificationButton) {
+
+            notificationButton.addEventListener(
                 "click",
                 () => {
 
                     showToast(
                         "بخش اعلان‌ها به‌زودی فعال می‌شود 🔔"
                     );
+
                 }
             );
+        }
 
 
-        // Bottom Navigation
+        /* =================================================
+           Bottom Navigation
+        ================================================= */
+
         document
             .querySelectorAll(
                 ".bottom-nav-item"
@@ -1863,11 +2814,15 @@ document.addEventListener(
 
                         }
                     );
+
                 }
             );
 
 
-        // Initial Load
+        /* =================================================
+           INITIAL LOAD
+        ================================================= */
+
         refreshDashboard();
 
     }

@@ -2,6 +2,8 @@
    RESET
 ===================================================== */
 
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap');
+
 * {
     box-sizing: border-box;
     margin: 0;
@@ -14,6 +16,7 @@ html {
 
 body {
     font-family:
+        "Vazirmatn",
         Tahoma,
         Arial,
         sans-serif;
@@ -415,6 +418,73 @@ body {
 
 
 /* =====================================================
+   MONTHLY COMPARISON
+===================================================== */
+
+.monthly-comparison {
+
+    margin-top: 12px;
+
+    padding: 14px 15px;
+
+    border-radius: 15px;
+
+    background: #f7f8f9;
+
+    border: 1px solid #edf0f2;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 10px;
+
+    min-width: 0;
+}
+
+.comparison-label {
+
+    font-size: 11px;
+
+    color: #777;
+
+    white-space: nowrap;
+}
+
+.comparison-value {
+
+    font-size: 12px;
+
+    font-weight: 800;
+
+    line-height: 1.7;
+
+    text-align: left;
+
+    direction: rtl;
+
+    min-width: 0;
+}
+
+.comparison-value.positive {
+
+    color: #c62828;
+}
+
+.comparison-value.negative {
+
+    color: #2e7d32;
+}
+
+.comparison-value.neutral {
+
+    color: #777;
+}
+
+
+/* =====================================================
    CATEGORIES
 ===================================================== */
 
@@ -585,17 +655,21 @@ body {
 
     max-width: 100%;
 
-    font-size: 9px;
+    font-size: 8px;
 
     font-weight: 700;
 
     color: #222;
 
-    white-space: nowrap;
+    line-height: 1.5;
 
-    overflow: hidden;
+    white-space: normal;
 
-    text-overflow: ellipsis;
+    overflow-wrap: break-word;
+
+    word-break: normal;
+
+    text-align: right;
 }
 
 #categoryList .category-summary-count {
@@ -694,6 +768,44 @@ span:first-child {
     font-weight: 700;
 
     color: #667eea;
+}
+
+
+/* =====================================================
+   CATEGORY CHART
+===================================================== */
+
+.category-chart-wrapper {
+
+    margin-top: 16px;
+
+    padding: 16px;
+
+    background: #ffffff;
+
+    border-radius: 18px;
+
+    border: 1px solid #eeeeee;
+}
+
+.category-chart-title {
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    margin-bottom: 12px;
+
+    text-align: right;
+}
+
+.category-chart-container {
+
+    position: relative;
+
+    width: 100%;
+
+    height: 280px;
 }
 
 
@@ -1343,6 +1455,81 @@ span:first-child {
 
 
 /* =====================================================
+   NUMERIC FONT
+===================================================== */
+
+.hero-amount,
+.summary-value,
+.expense-amount,
+.category-summary-amount,
+.category-summary-footer,
+.confirmation-amount,
+.delete-amount,
+.comparison-value {
+
+    font-family:
+        "Vazirmatn",
+        Tahoma,
+        Arial,
+        sans-serif;
+
+    font-variant-numeric:
+        tabular-nums;
+
+    direction: rtl;
+}
+
+.hero-amount {
+
+    font-weight: 800;
+
+    letter-spacing: 0;
+}
+
+.summary-value {
+
+    font-weight: 800;
+}
+
+.expense-amount {
+
+    font-weight: 700;
+
+    font-size: 13px;
+}
+
+.category-summary-amount {
+
+    font-weight: 700;
+}
+
+.category-summary-footer span:first-child {
+
+    font-family:
+        "Vazirmatn",
+        Tahoma,
+        Arial,
+        sans-serif;
+
+    font-weight: 700;
+}
+
+.confirmation-amount {
+
+    font-size: 23px;
+
+    font-weight: 900;
+}
+
+.delete-amount {
+
+    font-size: 18px;
+
+    font-weight: 900;
+}
+
+
+/* =====================================================
    MOBILE
 ===================================================== */
 
@@ -1370,10 +1557,34 @@ span:first-child {
         padding: 15px;
     }
 
-    /*
-       Category Summary
-       همیشه سه ستون
-    */
+
+    /* -----------------------------------------------
+       MONTH COMPARISON
+    ----------------------------------------------- */
+
+    .monthly-comparison {
+
+        padding: 12px;
+
+        gap: 8px;
+    }
+
+    .comparison-label {
+
+        font-size: 10px;
+    }
+
+    .comparison-value {
+
+        font-size: 10px;
+
+        text-align: left;
+    }
+
+
+    /* -----------------------------------------------
+       CATEGORY SUMMARY
+    ----------------------------------------------- */
 
     #categoryList {
 
@@ -1419,7 +1630,9 @@ span:first-child {
     #categoryList
     .category-summary-name {
 
-        font-size: 8px;
+        font-size: 7px;
+
+        line-height: 1.4;
     }
 
     #categoryList
@@ -1454,6 +1667,28 @@ span:first-child {
 
         font-size: 11px;
     }
+
+
+    /* -----------------------------------------------
+       CHART
+    ----------------------------------------------- */
+
+    .category-chart-wrapper {
+
+        padding: 13px;
+
+        margin-top: 14px;
+    }
+
+    .category-chart-title {
+
+        font-size: 13px;
+    }
+
+    .category-chart-container {
+
+        height: 250px;
+    }
 }
 
 
@@ -1473,9 +1708,40 @@ span:first-child {
         font-size: 26px;
     }
 
-    /*
-       همچنان سه ستون
-    */
+
+    /* -----------------------------------------------
+       MONTH COMPARISON
+    ----------------------------------------------- */
+
+    .monthly-comparison {
+
+        display: flex;
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 3px;
+    }
+
+    .comparison-label {
+
+        font-size: 9px;
+    }
+
+    .comparison-value {
+
+        font-size: 10px;
+
+        width: 100%;
+
+        text-align: right;
+    }
+
+
+    /* -----------------------------------------------
+       CATEGORY
+    ----------------------------------------------- */
 
     #categoryList {
 
@@ -1505,7 +1771,9 @@ span:first-child {
     #categoryList
     .category-summary-name {
 
-        font-size: 7px;
+        font-size: 6px;
+
+        line-height: 1.4;
     }
 
     #categoryList
@@ -1520,6 +1788,11 @@ span:first-child {
         font-size: 5px;
     }
 
+
+    /* -----------------------------------------------
+       EXPENSE ACTIONS
+    ----------------------------------------------- */
+
     .expense-edit-button,
     .expense-delete-button {
 
@@ -1529,47 +1802,14 @@ span:first-child {
 
         font-size: 13px;
     }
-}
-
-/* =====================================================
-   CATEGORY SUMMARY - LONG NAMES
-===================================================== */
-
-#categoryList .category-summary-name {
-    font-size: 8px;
-    line-height: 1.5;
-
-    white-space: normal;
-
-    overflow: visible;
-
-    text-overflow: unset;
-
-    text-align: right;
-
-    word-break: normal;
-
-    overflow-wrap: break-word;
-}
 
 
-/* مخصوص موبایل */
+    /* -----------------------------------------------
+       CHART
+    ----------------------------------------------- */
 
-@media (max-width: 520px) {
+    .category-chart-container {
 
-    #categoryList .category-summary-name {
-        font-size: 7px;
-        line-height: 1.4;
-    }
-}
-
-
-/* موبایل خیلی کوچک */
-
-@media (max-width: 380px) {
-
-    #categoryList .category-summary-name {
-        font-size: 6px;
-        line-height: 1.4;
+        height: 220px;
     }
 }
