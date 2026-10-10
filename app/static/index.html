@@ -2,42 +2,62 @@
 <html lang="fa" dir="rtl">
 
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>مدیریت هزینه</title>
 
-    <link rel="stylesheet" href="/static/style.css">
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
 </head>
+
 
 <body>
 
+
 <div class="app-shell">
+
 
     <!-- ================= HEADER ================= -->
 
     <header class="top-header">
 
         <div>
-            <div class="welcome-text">
-                سلام 👋
-            </div>
 
-            <div class="app-title">
+            <div class="app-title" id="appTitle">
                 مدیریت هزینه
             </div>
+
         </div>
 
+
         <button
-            class="header-icon-button"
-            id="notificationButton"
+            class="subscription-icon-button trial"
+            id="subscriptionStatusButton"
             type="button"
+            title="اشتراک آزمایشی"
+            aria-label="وضعیت اشتراک"
         >
-            🔔
+
+            <span class="subscription-icon">
+                👑
+            </span>
+
         </button>
 
     </header>
 
+
+    <!-- ================= HOME VIEW ================= -->
+    <main id="homeView" class="app-view">
 
     <!-- ================= TODAY ================= -->
 
@@ -57,12 +77,14 @@
             هزینه امروز
         </div>
 
+
         <div
             class="hero-amount"
             id="todayTotal"
         >
             ۰ تومان
         </div>
+
 
         <div class="hero-subtitle">
             مجموع هزینه‌های امروز
@@ -79,6 +101,7 @@
             ثبت سریع هزینه
         </div>
 
+
         <div class="quick-input-wrapper">
 
             <input
@@ -88,6 +111,7 @@
                 placeholder="مثلاً: ۲۰۰ هزار تومان کرایه تاکسی"
                 autocomplete="off"
             >
+
 
             <button
                 type="button"
@@ -99,6 +123,7 @@
             </button>
 
         </div>
+
 
         <button
             type="button"
@@ -123,11 +148,13 @@
                     خلاصه ماه
                 </div>
 
+
                 <div class="section-subtitle">
                     وضعیت هزینه‌های این ماه
                 </div>
 
             </div>
+
 
             <button
                 type="button"
@@ -142,6 +169,7 @@
 
         <div class="summary-grid">
 
+
             <!-- TOTAL -->
 
             <div class="summary-card">
@@ -150,9 +178,11 @@
                     💰
                 </div>
 
+
                 <div class="summary-label">
                     کل هزینه
                 </div>
+
 
                 <div
                     class="summary-value"
@@ -172,9 +202,11 @@
                     📊
                 </div>
 
+
                 <div class="summary-label">
                     میانگین روزانه
                 </div>
+
 
                 <div
                     class="summary-value"
@@ -195,6 +227,7 @@
             <div class="comparison-label">
                 مقایسه با ماه قبل
             </div>
+
 
             <div
                 id="monthlyComparison"
@@ -219,6 +252,7 @@
                 <div class="section-title">
                     دسته‌بندی هزینه‌ها
                 </div>
+
 
                 <div class="section-subtitle">
                     بیشترین هزینه‌ها
@@ -249,6 +283,7 @@
                 توزیع هزینه‌ها
             </div>
 
+
             <div class="category-chart-container">
 
                 <canvas id="categoryChart"></canvas>
@@ -271,6 +306,7 @@
                 <div class="section-title">
                     هزینه‌های اخیر
                 </div>
+
 
                 <div class="section-subtitle">
                     هزینه‌های ثبت‌شده امروز
@@ -295,17 +331,166 @@
     </section>
 
 
+
+    </main>
+
+    <!-- ================= REPORTS VIEW ================= -->
+    <main id="reportsView" class="app-view" hidden>
+
+        <div class="reports-page-heading">
+            <div>
+                <h1>گزارش هزینه‌ها</h1>
+                <p>تحلیل مخارج در بازه زمانی دلخواه</p>
+            </div>
+            <div class="reports-heading-icon" aria-hidden="true">📊</div>
+        </div>
+
+        <section class="dashboard-section reports-filter-card">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">بازه گزارش</div>
+                    <div class="section-subtitle" id="reportsDateCaption">هزینه‌های ماه جاری</div>
+                </div>
+            </div>
+
+            <div class="report-range-options" role="group" aria-label="انتخاب بازه گزارش">
+                <button type="button" class="report-range-button" data-report-range="today">امروز</button>
+                <button type="button" class="report-range-button" data-report-range="week">این هفته</button>
+                <button type="button" class="report-range-button active" data-report-range="month">این ماه</button>
+                <button type="button" class="report-range-button" data-report-range="last-month">ماه قبل</button>
+                <button type="button" class="report-range-button" data-report-range="custom">دلخواه</button>
+            </div>
+
+            <div class="report-custom-dates" id="reportCustomDates" hidden>
+                <div class="report-date-field">
+                    <label for="reportFromDateJalali">از تاریخ (شمسی)</label>
+                    <div class="report-date-input-wrap">
+                        <input
+                            type="text"
+                            id="reportFromDateJalali"
+                            class="report-jalali-date-input"
+                            autocomplete="off"
+                            inputmode="text"
+                            spellcheck="false"
+                            placeholder="مثلاً 1405/07/09"
+                            aria-label="تاریخ شروع گزارش به شمسی"
+                            aria-haspopup="dialog"
+                            aria-controls="reportJalaliPicker"
+                        >
+                        <button type="button" class="report-date-picker-trigger" data-report-date-picker="reportFromDateJalali" aria-label="انتخاب تاریخ شروع" title="انتخاب تاریخ">▦</button>
+                    </div>
+                    <input type="hidden" id="reportFromDate">
+                </div>
+                <div class="report-date-field">
+                    <label for="reportToDateJalali">تا تاریخ (شمسی)</label>
+                    <div class="report-date-input-wrap">
+                        <input
+                            type="text"
+                            id="reportToDateJalali"
+                            class="report-jalali-date-input"
+                            autocomplete="off"
+                            inputmode="text"
+                            spellcheck="false"
+                            placeholder="مثلاً 1405/07/18"
+                            aria-label="تاریخ پایان گزارش به شمسی"
+                            aria-haspopup="dialog"
+                            aria-controls="reportJalaliPicker"
+                        >
+                        <button type="button" class="report-date-picker-trigger" data-report-date-picker="reportToDateJalali" aria-label="انتخاب تاریخ پایان" title="انتخاب تاریخ">▦</button>
+                    </div>
+                    <input type="hidden" id="reportToDate">
+                </div>
+                <button type="button" class="primary-button report-apply-button" id="applyReportDates">نمایش گزارش</button>
+            </div>
+            <div id="reportsStatus" class="reports-status" role="status" aria-live="polite"></div>
+        </section>
+
+        <section class="dashboard-section reports-summary-section">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">خلاصه بازه انتخابی</div>
+                    <div class="section-subtitle">آمار بر اساس هزینه‌های ثبت‌شده</div>
+                </div>
+            </div>
+
+            <div class="reports-summary-grid">
+                <article class="report-stat-card report-stat-primary">
+                    <div class="report-stat-icon">💰</div>
+                    <div class="report-stat-label">مجموع هزینه‌ها</div>
+                    <div class="report-stat-value" id="reportTotalAmount">—</div>
+                </article>
+                <article class="report-stat-card">
+                    <div class="report-stat-icon">🧾</div>
+                    <div class="report-stat-label">تعداد تراکنش‌ها</div>
+                    <div class="report-stat-value" id="reportExpenseCount">—</div>
+                </article>
+                <article class="report-stat-card">
+                    <div class="report-stat-icon">📅</div>
+                    <div class="report-stat-label">میانگین روزانه</div>
+                    <div class="report-stat-value" id="reportDailyAverage">—</div>
+                </article>
+                <article class="report-stat-card">
+                    <div class="report-stat-icon">🏷️</div>
+                    <div class="report-stat-label">بیشترین دسته</div>
+                    <div class="report-stat-value report-stat-category" id="reportTopCategory">—</div>
+                    <div class="report-stat-caption" id="reportTopCategoryAmount"></div>
+                </article>
+            </div>
+
+            <div class="report-comparison">
+                <div class="report-comparison-title">مقایسه با بازه قبلی</div>
+                <div class="report-comparison-value neutral" id="reportComparisonValue">در حال محاسبه...</div>
+                <div class="report-comparison-caption" id="reportComparisonCaption"></div>
+            </div>
+        </section>
+
+        <section class="dashboard-section report-chart-section">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">روند هزینه‌ها</div>
+                    <div class="section-subtitle">تغییرات مخارج در روزهای بازه انتخابی</div>
+                </div>
+            </div>
+            <div class="report-trend-chart-container">
+                <canvas id="reportTrendChart" aria-label="نمودار روند روزانه هزینه‌ها"></canvas>
+            </div>
+        </section>
+
+        <section class="dashboard-section report-chart-section">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">ترکیب هزینه‌ها</div>
+                    <div class="section-subtitle">سهم هر دسته از کل مخارج</div>
+                </div>
+            </div>
+            <div class="report-category-chart-container">
+                <canvas id="reportCategoryChart" aria-label="نمودار سهم دسته‌بندی هزینه‌ها"></canvas>
+            </div>
+            <div id="reportCategoryBreakdown" class="report-category-breakdown">
+                <div class="loading">در انتظار دریافت گزارش...</div>
+            </div>
+        </section>
+
+    </main>
+
     <!-- ================= BOTTOM NAV ================= -->
 
+
     <nav class="bottom-nav">
+
 
         <button
             type="button"
             class="bottom-nav-item active"
             data-nav="home"
         >
+
             <span>🏠</span>
-            <small>خانه</small>
+
+            <small>
+                خانه
+            </small>
+
         </button>
 
 
@@ -314,8 +499,13 @@
             class="bottom-nav-item"
             data-nav="reports"
         >
+
             <span>📊</span>
-            <small>گزارش‌ها</small>
+
+            <small>
+                گزارش‌ها
+            </small>
+
         </button>
 
 
@@ -333,18 +523,29 @@
             class="bottom-nav-item"
             data-nav="accounts"
         >
+
             <span>💳</span>
-            <small>حساب‌ها</small>
+
+            <small>
+                حساب‌ها
+            </small>
+
         </button>
 
 
         <button
+            id="settingsButton"
             type="button"
             class="bottom-nav-item"
             data-nav="settings"
         >
+
             <span>⚙️</span>
-            <small>تنظیمات</small>
+
+            <small>
+                تنظیمات
+            </small>
+
         </button>
 
     </nav>
@@ -363,11 +564,13 @@
 
     <div class="modal-card">
 
+
         <div class="modal-header">
 
             <h2>
                 تأیید هزینه
             </h2>
+
 
             <button
                 class="modal-close"
@@ -431,6 +634,7 @@
                 انصراف
             </button>
 
+
             <button
                 type="button"
                 class="primary-button"
@@ -457,11 +661,13 @@
 
     <div class="modal-card">
 
+
         <div class="modal-header">
 
             <h2>
                 ویرایش هزینه
             </h2>
+
 
             <button
                 class="modal-close"
@@ -476,9 +682,11 @@
 
         <div class="edit-form">
 
+
             <label for="editAmount">
                 مبلغ
             </label>
+
 
             <input
                 type="number"
@@ -492,6 +700,7 @@
                 توضیحات
             </label>
 
+
             <input
                 type="text"
                 id="editDescription"
@@ -503,6 +712,7 @@
             <label for="editCategory">
                 دسته‌بندی
             </label>
+
 
             <select id="editCategory">
 
@@ -516,6 +726,7 @@
             <label for="editDate">
                 تاریخ
             </label>
+
 
             <input
                 type="date"
@@ -534,6 +745,7 @@
             >
                 انصراف
             </button>
+
 
             <button
                 type="button"
@@ -561,11 +773,13 @@
 
     <div class="modal-card delete-modal-card">
 
+
         <div class="modal-header">
 
             <h2>
                 حذف هزینه
             </h2>
+
 
             <button
                 class="modal-close"
@@ -591,6 +805,7 @@
 
 
             <div class="delete-expense-info">
+
 
                 <div
                     class="delete-description"
@@ -656,6 +871,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="/static/app.js"></script>
+
 
 </body>
 

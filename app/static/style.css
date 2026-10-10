@@ -275,6 +275,36 @@ body {
     cursor: pointer;
 }
 
+.voice-button:disabled {
+
+    cursor: not-allowed;
+
+    opacity: 0.5;
+}
+
+.voice-button.recording {
+
+    transform: scale(1.08);
+
+    animation:
+        voicePulse 1s infinite;
+}
+
+@keyframes voicePulse {
+
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
 
 /* =====================================================
    BUTTONS
@@ -474,6 +504,16 @@ body {
 }
 
 .comparison-value.negative {
+
+    color: #2e7d32;
+}
+
+.comparison-value.increase {
+
+    color: #c62828;
+}
+
+.comparison-value.decrease {
 
     color: #2e7d32;
 }
@@ -1465,7 +1505,8 @@ span:first-child {
 .category-summary-footer,
 .confirmation-amount,
 .delete-amount,
-.comparison-value {
+.comparison-value,
+.subscription-plan-price {
 
     font-family:
         "Vazirmatn",
@@ -1530,8 +1571,1072 @@ span:first-child {
 
 
 /* =====================================================
-   MOBILE
+   SUBSCRIPTION ICON
 ===================================================== */
+
+.subscription-icon-button {
+
+    width: 38px;
+
+    height: 38px;
+
+    border: none;
+
+    background: transparent;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    border-radius: 50%;
+
+    cursor: pointer;
+
+    transition:
+        transform 0.2s ease,
+        background 0.2s ease;
+}
+
+.subscription-icon-button:hover {
+
+    background:
+        rgba(0, 0, 0, 0.04);
+}
+
+.subscription-icon-button:active {
+
+    transform:
+        scale(0.9);
+}
+
+.subscription-icon {
+
+    font-size: 19px;
+
+    line-height: 1;
+}
+
+
+/* =====================================================
+   SUBSCRIPTION STATUS
+===================================================== */
+
+.subscription-icon-button.trial .subscription-icon {
+
+    opacity: 0.65;
+}
+
+.subscription-icon-button.warning .subscription-icon {
+
+    opacity: 0.9;
+
+    filter:
+        saturate(1.4);
+}
+
+.subscription-icon-button.expired .subscription-icon {
+
+    opacity: 1;
+
+    filter:
+        grayscale(1)
+        sepia(1)
+        saturate(6)
+        hue-rotate(315deg);
+}
+
+.subscription-icon-button.active .subscription-icon {
+
+    opacity: 1;
+}
+
+
+/* =====================================================
+   SUBSCRIPTION PAYWALL
+===================================================== */
+
+.subscription-paywall {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 5000;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 16px;
+
+    background:
+        rgba(20, 24, 28, 0.48);
+
+    backdrop-filter:
+        blur(5px);
+
+    -webkit-backdrop-filter:
+        blur(5px);
+
+    direction: rtl;
+}
+
+.subscription-paywall.hidden {
+
+    display: none;
+}
+
+
+/* =====================================================
+   PAYWALL CARD
+===================================================== */
+
+.subscription-paywall-card {
+
+    position: relative;
+
+    width: 100%;
+
+    max-width: 350px;
+
+    max-height:
+        calc(100vh - 32px);
+
+    overflow-y: auto;
+
+    padding:
+        30px
+        22px
+        20px;
+
+    background: #ffffff;
+
+    border-radius: 24px;
+
+    box-shadow:
+        0 20px 60px
+        rgba(0, 0, 0, 0.22);
+
+    text-align: center;
+
+    direction: rtl;
+}
+
+
+/* =====================================================
+   PAYWALL CLOSE
+===================================================== */
+
+.subscription-paywall-close {
+
+    position: absolute;
+
+    top: 11px;
+
+    left: 11px;
+
+    width: 32px;
+
+    height: 32px;
+
+    padding: 0;
+
+    border: none;
+
+    border-radius: 50%;
+
+    background: #f3f4f5;
+
+    color: #555;
+
+    font-family: inherit;
+
+    font-size: 22px;
+
+    line-height: 32px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    cursor: pointer;
+
+    z-index: 3;
+}
+
+.subscription-paywall-close:hover {
+
+    background: #e9ebed;
+}
+
+
+/* =====================================================
+   PAYWALL ICON
+===================================================== */
+
+.subscription-paywall-icon {
+
+    width: 62px;
+
+    height: 62px;
+
+    margin:
+        0 auto
+        13px;
+
+    border-radius: 18px;
+
+    background: #f7f8f9;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 34px;
+
+    line-height: 1;
+}
+
+
+/* =====================================================
+   PAYWALL TITLE
+===================================================== */
+
+.subscription-paywall-title {
+
+    width: 100%;
+
+    margin-bottom: 8px;
+
+    font-size: 17px;
+
+    font-weight: 800;
+
+    line-height: 1.8;
+
+    color: #222;
+
+    text-align: center;
+}
+
+
+/* =====================================================
+   PAYWALL DESCRIPTION
+===================================================== */
+
+.subscription-paywall-description {
+
+    width: 100%;
+
+    max-width: 285px;
+
+    margin:
+        0 auto
+        16px;
+
+    font-size: 11px;
+
+    line-height: 2;
+
+    color: #777;
+
+    text-align: center;
+}
+
+
+/* =====================================================
+   PLAN
+===================================================== */
+
+.subscription-plan {
+
+    width: 100%;
+
+    margin:
+        0 auto
+        16px;
+
+    padding:
+        14px
+        12px;
+
+    border-radius: 17px;
+
+    background: #f7f8f9;
+
+    border:
+        1px solid #edf0f2;
+
+    text-align: center;
+}
+
+.subscription-plan-label {
+
+    font-size: 10px;
+
+    color: #888;
+
+    margin-bottom: 4px;
+
+    text-align: center;
+}
+
+.subscription-plan-price {
+
+    font-size: 22px;
+
+    font-weight: 900;
+
+    line-height: 1.7;
+
+    color: #263238;
+
+    white-space: nowrap;
+
+    text-align: center;
+}
+
+.subscription-plan-period {
+
+    font-size: 9px;
+
+    color: #999;
+
+    margin-top: 1px;
+
+    text-align: center;
+}
+
+
+/* =====================================================
+   FEATURES
+===================================================== */
+
+.subscription-feature-list {
+
+    width: 100%;
+
+    margin:
+        0 auto
+        17px;
+
+    padding: 0;
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 4px;
+
+    direction: rtl;
+
+    text-align: center;
+}
+
+.subscription-feature-list div {
+
+    width: 100%;
+
+    max-width: 270px;
+
+    padding:
+        4px
+        8px;
+
+    border-radius: 8px;
+
+    color: #555;
+
+    font-size: 10px;
+
+    line-height: 1.8;
+
+    text-align: center;
+
+    background: #fafafa;
+}
+
+
+/* =====================================================
+   PAYWALL BUTTONS
+===================================================== */
+
+.subscription-paywall-card
+.primary-button,
+.subscription-paywall-card
+.secondary-button {
+
+    display: block;
+
+    width: 100%;
+
+    min-width: 0;
+
+    margin-left: auto;
+
+    margin-right: auto;
+
+    text-align: center;
+
+    box-sizing: border-box;
+}
+
+.subscription-paywall-card
+.primary-button {
+
+    margin-bottom: 9px;
+}
+
+
+/* =====================================================
+   BODY LOCK
+===================================================== */
+
+body.subscription-modal-open {
+
+    overflow: hidden;
+}
+
+
+/* =====================================================
+   SETTINGS
+===================================================== */
+
+.settings-modal {
+
+    position: fixed;
+
+    inset: 0;
+
+    z-index: 3000;
+
+    background:
+        rgba(0, 0, 0, 0.45);
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    padding: 16px;
+
+    direction: rtl;
+}
+
+.settings-modal.hidden {
+
+    display: none;
+}
+
+.settings-card {
+
+    width: 100%;
+
+    max-width: 520px;
+
+    max-height:
+        calc(100vh - 32px);
+
+    overflow-y: auto;
+
+    background: #ffffff;
+
+    border-radius: 24px;
+
+    box-shadow:
+        0 20px 60px
+        rgba(0, 0, 0, 0.18);
+}
+
+
+/* =====================================================
+   SETTINGS HEADER
+   قرارداد ثابت:
+   عنوان سمت راست
+   دکمه بستن سمت چپ
+===================================================== */
+
+.settings-header {
+
+    position: sticky;
+
+    top: 0;
+
+    z-index: 2;
+
+    background: #ffffff;
+
+    padding: 20px;
+
+    border-bottom:
+        1px solid #eeeeee;
+
+    display: flex;
+
+    flex-direction: row;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    direction: rtl;
+
+    min-height: 84px;
+}
+
+.settings-header-title {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-width: 0;
+
+    flex: 1;
+
+    order: 1;
+
+    text-align: right;
+}
+
+.settings-header-icon {
+
+    width: 44px;
+
+    height: 44px;
+
+    flex:
+        0 0
+        44px;
+
+    border-radius: 14px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #f5f5f5;
+
+    font-size: 22px;
+}
+
+.settings-title {
+
+    font-size: 19px;
+
+    font-weight: 800;
+
+    color: #222222;
+
+    line-height: 1.6;
+
+    text-align: right;
+}
+
+.settings-subtitle {
+
+    margin-top: 4px;
+
+    font-size: 12px;
+
+    color: #888888;
+
+    line-height: 1.6;
+
+    text-align: right;
+}
+
+.settings-close {
+
+    width: 38px;
+
+    height: 38px;
+
+    flex:
+        0 0
+        38px;
+
+    border: none;
+
+    border-radius: 12px;
+
+    background: #f5f5f5;
+
+    color: #555555;
+
+    font-size: 18px;
+
+    line-height: 1;
+
+    cursor: pointer;
+
+    order: 2;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    margin-right: 12px;
+
+    margin-left: 0;
+}
+
+.settings-close:hover {
+
+    background: #eceeef;
+
+}
+
+.settings-close:active {
+
+    transform:
+        scale(0.94);
+}
+
+
+/* =====================================================
+   SETTINGS CONTENT
+===================================================== */
+
+.settings-content {
+
+    padding:
+        10px
+        16px
+        20px;
+}
+
+
+/* =====================================================
+   SETTINGS ITEM
+===================================================== */
+
+.settings-item {
+
+    width: 100%;
+
+    border: none;
+
+    background: transparent;
+
+    padding:
+        15px
+        4px;
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 13px;
+
+    text-align: right;
+
+    direction: rtl;
+
+    cursor: pointer;
+
+    border-bottom:
+        1px solid #f0f0f0;
+
+    font-family: inherit;
+}
+
+.settings-item:last-child {
+
+    border-bottom: none;
+}
+
+.settings-item:hover {
+
+    background:
+        rgba(
+            0,
+            0,
+            0,
+            0.015
+        );
+}
+
+.settings-item:active {
+
+    opacity: 0.7;
+}
+
+.settings-item-icon {
+
+    width: 42px;
+
+    height: 42px;
+
+    flex:
+        0 0
+        42px;
+
+    border-radius: 13px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    background: #f7f7f7;
+
+    font-size: 20px;
+}
+
+.settings-item-text {
+
+    flex: 1;
+
+    min-width: 0;
+
+    text-align: right;
+}
+
+.settings-item-title {
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    color: #222222;
+
+    line-height: 1.6;
+
+    text-align: right;
+}
+
+.settings-item-description {
+
+    margin-top: 4px;
+
+    font-size: 11px;
+
+    color: #8a8a8a;
+
+    line-height: 1.6;
+
+    text-align: right;
+}
+
+.settings-item-arrow {
+
+    width: 20px;
+
+    flex:
+        0 0
+        20px;
+
+    font-size: 25px;
+
+    color: #aaaaaa;
+
+    line-height: 1;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+}
+
+body.settings-modal-open {
+
+    overflow: hidden;
+}
+
+
+/* =====================================================
+   SETTINGS DETAIL MODAL
+===================================================== */
+
+#settingsDetailModal {
+
+    z-index: 4000;
+}
+
+#settingsDetailModal .settings-card {
+
+    max-width: 520px;
+}
+
+#settingsDetailModal .settings-content {
+
+    padding:
+        18px
+        20px
+        22px;
+}
+
+#settingsDetailModal .edit-form {
+
+    width: 100%;
+}
+
+#settingsDetailModal .settings-item {
+
+    width: 100%;
+
+    border:
+        1px solid #eeeeee;
+
+    border-radius: 16px;
+
+    background: #f9fafb;
+
+    margin: 0;
+
+    padding: 14px;
+
+    cursor: default;
+}
+
+#settingsDetailModal .settings-item:hover {
+
+    background: #f9fafb;
+}
+
+
+/* =====================================================
+   SETTINGS DETAIL BUTTONS
+===================================================== */
+
+#settingsDetailModal
+.primary-button {
+
+    margin-top: 8px;
+}
+
+
+/* =====================================================
+   CATEGORY MANAGEMENT
+===================================================== */
+
+.category-management-card {
+
+    max-width: 560px;
+}
+
+.category-management-list {
+
+    padding:
+        8px
+        16px;
+}
+
+.category-management-item {
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 12px;
+
+    padding:
+        14px
+        4px;
+
+    border-bottom:
+        1px solid #eeeeee;
+
+    direction: rtl;
+}
+
+.category-management-item:last-child {
+
+    border-bottom: none;
+}
+
+.category-management-main {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 12px;
+
+    min-width: 0;
+
+    flex: 1;
+}
+
+.category-management-icon {
+
+    width: 44px;
+
+    height: 44px;
+
+    flex:
+        0 0
+        44px;
+
+    border-radius: 14px;
+
+    background: #f7f7f7;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    font-size: 21px;
+}
+
+.category-management-info {
+
+    min-width: 0;
+
+    flex: 1;
+
+    text-align: right;
+}
+
+.category-management-name {
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    color: #222;
+
+    overflow: hidden;
+
+    text-overflow: ellipsis;
+
+    white-space: nowrap;
+
+    text-align: right;
+}
+
+.category-management-status {
+
+    margin-top: 4px;
+
+    font-size: 11px;
+
+    text-align: right;
+}
+
+.category-management-status.active {
+
+    color: #2e8b57;
+}
+
+.category-management-status.inactive {
+
+    color: #c62828;
+}
+
+.category-management-actions {
+
+    display: flex;
+
+    align-items: center;
+
+    gap: 6px;
+
+    direction: ltr;
+
+    flex-shrink: 0;
+}
+
+.category-action-button {
+
+    width: 36px;
+
+    height: 36px;
+
+    border: none;
+
+    border-radius: 11px;
+
+    background: #f5f5f5;
+
+    cursor: pointer;
+
+    font-size: 16px;
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+}
+
+.category-action-button:hover {
+
+    background: #eceff1;
+}
+
+.category-action-button:active {
+
+    opacity: 0.65;
+
+    transform:
+        scale(0.95);
+}
+
+.category-management-footer {
+
+    padding:
+        14px
+        16px
+        20px;
+}
+
+.category-management-footer
+.primary-button {
+
+    width: 100%;
+}
+
+.category-management-loading,
+.category-management-empty,
+.category-management-error {
+
+    text-align: center;
+
+    padding:
+        30px
+        15px;
+
+    font-size: 13px;
+
+    color: #888;
+}
+
+.category-management-error {
+
+    color: #c62828;
+}
+
+
+/* ============================================================
+   MOBILE
+=========================================================== */
 
 @media (max-width: 520px) {
 
@@ -1689,12 +2794,303 @@ span:first-child {
 
         height: 250px;
     }
+
+
+    /* -----------------------------------------------
+       SUBSCRIPTION
+    ----------------------------------------------- */
+
+    .subscription-paywall {
+
+        padding: 12px;
+    }
+
+    .subscription-paywall-card {
+
+        max-width: 340px;
+
+        padding:
+            27px
+            17px
+            17px;
+
+        border-radius: 22px;
+    }
+
+    .subscription-paywall-icon {
+
+        width: 58px;
+
+        height: 58px;
+
+        font-size: 31px;
+
+        margin-bottom: 10px;
+    }
+
+    .subscription-paywall-title {
+
+        font-size: 16px;
+    }
+
+    .subscription-paywall-description {
+
+        font-size: 10px;
+
+        max-width: 275px;
+    }
+
+    .subscription-plan {
+
+        padding:
+            13px
+            10px;
+    }
+
+    .subscription-plan-price {
+
+        font-size: 20px;
+    }
+
+    .subscription-feature-list {
+
+        margin-bottom: 15px;
+    }
+
+    .subscription-feature-list div {
+
+        max-width: 250px;
+
+        font-size: 9px;
+    }
+
+
+    /* -----------------------------------------------
+       SETTINGS
+    ----------------------------------------------- */
+
+    .settings-modal {
+
+        align-items: flex-end;
+
+        padding: 0;
+    }
+
+    .settings-card {
+
+        max-width: none;
+
+        max-height: 90vh;
+
+        border-radius:
+            24px
+            24px
+            0
+            0;
+    }
+
+    .settings-header {
+
+        padding: 17px;
+
+        min-height: 78px;
+    }
+
+    .settings-header-title {
+
+        gap: 9px;
+    }
+
+    .settings-header-icon {
+
+        width: 40px;
+
+        height: 40px;
+
+        flex-basis: 40px;
+
+        border-radius: 12px;
+
+        font-size: 20px;
+    }
+
+    .settings-title {
+
+        font-size: 17px;
+    }
+
+    .settings-subtitle {
+
+        font-size: 10px;
+    }
+
+    .settings-close {
+
+        width: 36px;
+
+        height: 36px;
+
+        flex-basis: 36px;
+
+        margin-right: 9px;
+
+        border-radius: 11px;
+    }
+
+    .settings-content {
+
+        padding:
+            8px
+            14px
+            18px;
+    }
+
+    .settings-item {
+
+        padding:
+            14px
+            2px;
+    }
+
+    .settings-item-icon {
+
+        width: 39px;
+
+        height: 39px;
+
+        flex-basis: 39px;
+
+        border-radius: 12px;
+
+        font-size: 19px;
+    }
+
+    .settings-item-title {
+
+        font-size: 13px;
+    }
+
+    .settings-item-description {
+
+        font-size: 10px;
+
+        margin-top: 3px;
+    }
+
+    .settings-item-arrow {
+
+        font-size: 23px;
+    }
+
+
+    /* -----------------------------------------------
+       SETTINGS DETAIL
+    ----------------------------------------------- */
+
+    #settingsDetailModal .settings-content {
+
+        padding:
+            15px
+            16px
+            20px;
+    }
+
+    #settingsDetailModal .settings-item {
+
+        padding: 13px;
+    }
+
+
+    /* -----------------------------------------------
+       CATEGORY MANAGEMENT
+    ----------------------------------------------- */
+
+    .category-management-card {
+
+        max-height: 90vh;
+
+        border-radius:
+            24px
+            24px
+            0
+            0;
+    }
+
+    .category-management-list {
+
+        padding:
+            6px
+            14px;
+    }
+
+    .category-management-item {
+
+        padding:
+            13px
+            2px;
+
+        gap: 8px;
+    }
+
+    .category-management-main {
+
+        gap: 9px;
+    }
+
+    .category-management-icon {
+
+        width: 40px;
+
+        height: 40px;
+
+        flex-basis: 40px;
+
+        border-radius: 12px;
+
+        font-size: 19px;
+    }
+
+    .category-management-name {
+
+        font-size: 13px;
+    }
+
+    .category-management-status {
+
+        font-size: 10px;
+
+        margin-top: 3px;
+    }
+
+    .category-management-actions {
+
+        gap: 4px;
+    }
+
+    .category-action-button {
+
+        width: 33px;
+
+        height: 33px;
+
+        border-radius: 10px;
+
+        font-size: 14px;
+    }
+
+    .category-management-footer {
+
+        padding:
+            12px
+            14px
+            18px;
+    }
 }
 
 
-/* =====================================================
+/* ============================================================
    VERY SMALL MOBILE
-===================================================== */
+=========================================================== */
 
 @media (max-width: 380px) {
 
@@ -1812,4 +3208,781 @@ span:first-child {
 
         height: 220px;
     }
+
+
+    /* -----------------------------------------------
+       SUBSCRIPTION
+    ----------------------------------------------- */
+
+    .subscription-paywall {
+
+        padding: 8px;
+    }
+
+    .subscription-paywall-card {
+
+        max-height:
+            calc(100vh - 16px);
+
+        padding:
+            23px
+            14px
+            14px;
+
+        border-radius: 20px;
+    }
+
+    .subscription-paywall-icon {
+
+        width: 54px;
+
+        height: 54px;
+
+        font-size: 29px;
+    }
+
+    .subscription-paywall-title {
+
+        font-size: 15px;
+
+        line-height: 1.7;
+    }
+
+    .subscription-paywall-description {
+
+        font-size: 9px;
+
+        max-width: 250px;
+
+        line-height: 1.9;
+    }
+
+    .subscription-plan {
+
+        padding:
+            11px
+            8px;
+
+        margin-bottom: 13px;
+    }
+
+    .subscription-plan-label {
+
+        font-size: 9px;
+    }
+
+    .subscription-plan-price {
+
+        font-size: 18px;
+    }
+
+    .subscription-plan-period {
+
+        font-size: 8px;
+    }
+
+    .subscription-feature-list {
+
+        gap: 3px;
+
+        margin-bottom: 13px;
+    }
+
+    .subscription-feature-list div {
+
+        max-width: 230px;
+
+        padding:
+            3px
+            6px;
+
+        font-size: 8px;
+
+        line-height: 1.7;
+    }
+
+
+    /* -----------------------------------------------
+       SETTINGS
+    ----------------------------------------------- */
+
+    .settings-header {
+
+        padding:
+            15px
+            14px;
+    }
+
+    .settings-header-icon {
+
+        width: 36px;
+
+        height: 36px;
+
+        flex-basis: 36px;
+
+        font-size: 18px;
+    }
+
+    .settings-title {
+
+        font-size: 15px;
+    }
+
+    .settings-subtitle {
+
+        font-size: 9px;
+    }
+
+    .settings-close {
+
+        width: 34px;
+
+        height: 34px;
+
+        flex-basis: 34px;
+
+        margin-right: 7px;
+
+        font-size: 17px;
+    }
+
+    .settings-item-icon {
+
+        width: 36px;
+
+        height: 36px;
+
+        flex-basis: 36px;
+
+        font-size: 17px;
+    }
+
+    .settings-item-title {
+
+        font-size: 12px;
+    }
+
+    .settings-item-description {
+
+        font-size: 9px;
+    }
+
+    .settings-item-arrow {
+
+        font-size: 21px;
+    }
+
+
+    /* -----------------------------------------------
+       CATEGORY MANAGEMENT
+    ----------------------------------------------- */
+
+    .category-management-icon {
+
+        width: 36px;
+
+        height: 36px;
+
+        flex-basis: 36px;
+
+        font-size: 17px;
+    }
+
+    .category-management-name {
+
+        font-size: 12px;
+    }
+
+    .category-management-status {
+
+        font-size: 9px;
+    }
+
+    .category-action-button {
+
+        width: 30px;
+
+        height: 30px;
+
+        font-size: 13px;
+    }
+
+    .category-management-footer
+    .primary-button {
+
+        min-height: 44px;
+
+        font-size: 13px;
+    }
+}
+
+/* =====================================================
+   REPORTS PAGE
+===================================================== */
+
+.app-view[hidden] {
+    display: none !important;
+}
+
+.reports-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 2px 16px 16px;
+    padding: 4px 2px;
+}
+
+.reports-page-heading h1 {
+    font-size: 21px;
+    font-weight: 900;
+    margin-bottom: 5px;
+}
+
+.reports-page-heading p {
+    color: #7a858c;
+    font-size: 12px;
+    line-height: 1.8;
+}
+
+.reports-heading-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    flex: 0 0 48px;
+    border-radius: 16px;
+    background: #e9eef1;
+    font-size: 23px;
+}
+
+.report-range-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+}
+
+.report-range-button {
+    border: 1px solid #e2e7ea;
+    border-radius: 12px;
+    background: #f8fafb;
+    color: #53616a;
+    min-height: 38px;
+    padding: 0 12px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.report-range-button.active {
+    background: #263238;
+    color: #fff;
+    border-color: #263238;
+}
+
+.report-custom-dates {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.report-custom-dates[hidden] {
+    display: none !important;
+}
+
+.report-date-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.report-date-field label {
+    font-size: 11px;
+    color: #68757d;
+}
+
+.report-date-field input:not([type="hidden"]) {
+    width: 100%;
+    min-width: 0;
+    height: 43px;
+    padding: 0 8px;
+    border: 1px solid #dfe4e7;
+    border-radius: 11px;
+    background: #fff;
+    color: #263238;
+    font-family: inherit;
+    font-size: 12px;
+    text-align: center;
+    direction: ltr;
+    cursor: pointer;
+}
+
+.report-date-field input:not([type="hidden"]):focus {
+    outline: none;
+    border-color: #607d8b;
+    box-shadow: 0 0 0 3px rgba(96, 125, 139, 0.12);
+}
+
+.report-date-field input[type="hidden"] {
+    display: none !important;
+}
+
+/* Self-contained Jalali date picker: no external library/CDN required. */
+.report-date-input-wrap {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    width: 100%;
+    min-width: 0;
+}
+
+.report-date-input-wrap input.report-jalali-date-input {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
+    touch-action: manipulation;
+}
+
+.report-date-picker-trigger {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 43px;
+    border: 1px solid #dfe4e7;
+    border-radius: 11px;
+    background: #f6f8f9;
+    color: #263238;
+    font-family: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.report-date-picker-trigger:hover,
+.report-date-picker-trigger:focus-visible {
+    background: #eaf0f3;
+    border-color: #8da0aa;
+    outline: none;
+}
+
+.report-jalali-picker[hidden] {
+    display: none !important;
+}
+
+.report-jalali-picker {
+    position: fixed;
+    z-index: 99999;
+    width: 310px;
+    max-width: calc(100vw - 16px);
+    padding: 12px;
+    direction: rtl;
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif;
+    color: #263238;
+    background: #fff;
+    border: 1px solid #dce3e7;
+    border-radius: 16px;
+    box-shadow: 0 12px 38px rgba(23, 35, 42, .22);
+}
+
+.report-jalali-picker-header {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 11px;
+}
+
+.report-jalali-picker-title {
+    text-align: center;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.report-jalali-nav {
+    width: 38px;
+    height: 36px;
+    border: 1px solid #e0e5e8;
+    border-radius: 10px;
+    background: #f6f8f9;
+    color: #263238;
+    font-size: 24px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.report-jalali-nav:disabled {
+    opacity: .35;
+    cursor: not-allowed;
+}
+
+.report-jalali-weekdays,
+.report-jalali-days {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 4px;
+}
+
+.report-jalali-weekdays {
+    margin-bottom: 5px;
+}
+
+.report-jalali-weekdays span {
+    display: grid;
+    place-items: center;
+    height: 28px;
+    color: #77858d;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.report-jalali-empty-day {
+    min-height: 35px;
+}
+
+.report-jalali-day {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    height: 35px;
+    border: 1px solid transparent;
+    border-radius: 9px;
+    background: transparent;
+    color: #263238;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.report-jalali-day:hover:not(:disabled) {
+    border-color: #8da0aa;
+    background: #eef3f5;
+}
+
+.report-jalali-day.today {
+    border-color: #607d8b;
+    font-weight: 800;
+}
+
+.report-jalali-day.selected {
+    background: #263238;
+    color: #fff;
+    font-weight: 800;
+}
+
+.report-jalali-day:disabled {
+    color: #c4cbd0;
+    cursor: not-allowed;
+    text-decoration: line-through;
+}
+
+.report-jalali-picker-footer {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    border-top: 1px solid #edf0f2;
+    margin-top: 10px;
+    padding-top: 10px;
+}
+
+.report-jalali-picker-footer button {
+    border: 0;
+    border-radius: 9px;
+    padding: 7px 12px;
+    background: #f0f3f5;
+    color: #263238;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+.report-apply-button {
+    grid-column: 1 / -1;
+    width: 100%;
+}
+
+.reports-status {
+    min-height: 20px;
+    margin-top: 10px;
+    color: #76838a;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+.reports-status.error {
+    color: #c62828;
+}
+
+.reports-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.report-stat-card {
+    min-width: 0;
+    min-height: 136px;
+    padding: 14px;
+    border: 1px solid #edf0f2;
+    border-radius: 17px;
+    background: #fafbfc;
+}
+
+.report-stat-primary {
+    background: #edf2f4;
+    border-color: #dfe7eb;
+}
+
+.report-stat-icon {
+    font-size: 20px;
+    margin-bottom: 9px;
+}
+
+.report-stat-label {
+    color: #7e898f;
+    font-size: 11px;
+    margin-bottom: 7px;
+}
+
+.report-stat-value {
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+
+.report-stat-category {
+    font-size: 14px;
+}
+
+.report-stat-caption {
+    color: #7e898f;
+    font-size: 10px;
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+.report-comparison {
+    border: 1px solid #edf0f2;
+    background: #f8fafb;
+    border-radius: 15px;
+    padding: 14px;
+    margin-top: 12px;
+}
+
+.report-comparison-title {
+    font-size: 11px;
+    color: #78848b;
+    margin-bottom: 7px;
+}
+
+.report-comparison-value {
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1.8;
+}
+
+.report-comparison-value.increase {
+    color: #c62828;
+}
+
+.report-comparison-value.decrease {
+    color: #2e7d32;
+}
+
+.report-comparison-value.neutral {
+    color: #68757d;
+}
+
+.report-comparison-caption {
+    margin-top: 5px;
+    color: #8a949a;
+    font-size: 10px;
+}
+
+.report-trend-chart-container {
+    width: 100%;
+    height: 260px;
+    position: relative;
+}
+
+.report-category-chart-container {
+    width: 100%;
+    max-width: 360px;
+    height: 270px;
+    position: relative;
+    margin: 0 auto 16px;
+}
+
+.report-category-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 13px;
+}
+
+.report-category-row {
+    min-width: 0;
+}
+
+.report-category-row-top,
+.report-category-name,
+.report-category-row-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.report-category-name {
+    justify-content: flex-start;
+    min-width: 0;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.report-category-name > span:last-child {
+    overflow-wrap: anywhere;
+}
+
+.report-category-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    background: #f0f3f5;
+    font-size: 16px;
+}
+
+.report-category-amount {
+    text-align: left;
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.report-category-progress {
+    height: 6px;
+    margin-top: 8px;
+    background: #edf0f2;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.report-category-progress span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #607d8b, #80cbc4);
+}
+
+.report-category-row-footer {
+    margin-top: 5px;
+    color: #89949a;
+    font-size: 10px;
+}
+
+html[data-theme="dark"] .reports-page-heading p,
+html[data-theme="dark"] .report-stat-label,
+html[data-theme="dark"] .report-stat-caption,
+html[data-theme="dark"] .report-comparison-title,
+html[data-theme="dark"] .report-comparison-caption,
+html[data-theme="dark"] .report-category-row-footer,
+html[data-theme="dark"] .report-date-field label,
+html[data-theme="dark"] .reports-status {
+    color: #aab2b8;
+}
+
+html[data-theme="dark"] .report-range-button,
+html[data-theme="dark"] .report-stat-card,
+html[data-theme="dark"] .report-comparison,
+html[data-theme="dark"] .report-category-icon {
+    background: #20262b;
+    border-color: #333b41;
+    color: #e8eaed;
+}
+
+html[data-theme="dark"] .report-range-button.active {
+    background: #607d8b;
+    border-color: #607d8b;
+    color: #fff;
+}
+
+html[data-theme="dark"] .report-stat-primary {
+    background: #26343b;
+    border-color: #394951;
+}
+
+html[data-theme="dark"] .report-date-field input:not([type="hidden"]) {
+    background: #20262b;
+    border-color: #3b444b;
+    color: #f1f3f4;
+}
+
+
+@media (max-width: 380px) {
+    .reports-page-heading h1 {
+        font-size: 19px;
+    }
+
+    .report-range-options {
+        gap: 5px;
+    }
+
+    .report-range-button {
+        padding: 0 9px;
+        font-size: 11px;
+    }
+
+    .report-stat-card {
+        padding: 11px;
+    }
+
+    .report-stat-value {
+        font-size: 13px;
+    }
+}
+
+
+html[data-theme="dark"] .report-date-picker-trigger,
+html[data-theme="dark"] .report-jalali-picker,
+html[data-theme="dark"] .report-jalali-nav {
+    background: #20262b;
+    border-color: #3b444b;
+    color: #f1f3f4;
+}
+
+html[data-theme="dark"] .report-jalali-day {
+    color: #f1f3f4;
+}
+
+html[data-theme="dark"] .report-jalali-day:hover:not(:disabled) {
+    background: #303a41;
+}
+
+html[data-theme="dark"] .report-jalali-day.selected {
+    background: #607d8b;
+    color: #fff;
+}
+
+html[data-theme="dark"] .report-jalali-day:disabled {
+    color: #58636a;
+}
+
+html[data-theme="dark"] .report-jalali-picker-footer {
+    border-top-color: #333b41;
+}
+
+html[data-theme="dark"] .report-jalali-picker-footer button {
+    background: #303a41;
+    color: #f1f3f4;
 }

@@ -38,6 +38,9 @@ def normalize_text(text: str) -> str:
     # فاصله‌های اضافی
     text = " ".join(text.split())
 
+    # یکسان‌سازی حروف عربی و فارسی
+    text = text.replace("ي", "ی").replace("ك", "ک")
+
     # اعداد فارسی / عربی
     text = normalize_digits(text)
 
@@ -108,7 +111,7 @@ def parse_persian_number_words(text: str):
 
     tokens = [
         token
-        for token in re.split(r"\s+|و", text)
+        for token in re.split(r"\s+و\s+|\s+", text)
         if token
     ]
 
@@ -218,15 +221,15 @@ def parse_relative_date(text: str):
 
         return today + timedelta(days=1)
 
-    if "پریروز" in normalized:
+    if( "پریروز" in normalized or    "پری روز" in text):
 
         return today - timedelta(days=2)
 
-    if "دیروز" in normalized:
+    if ("دیروز" in normalized or "دی روز" in text):
 
         return today - timedelta(days=1)
 
-    if "امروز" in normalized:
+    if( "امروز" in normalized or  "ام روز" in text):
 
         return today
 
@@ -237,169 +240,283 @@ def parse_relative_date(text: str):
 # JALALI DATE
 # ============================================================
 
+JALALI_MONTHS = {
+    "فروردین": 1,
+    "اردیبهشت": 2,
+    "خرداد": 3,
+    "تیر": 4,
+    "مرداد": 5,
+    "شهریور": 6,
+    "مهر": 7,
+    "آبان": 8,
+    "آذر": 9,
+    "دی": 10,
+    "بهمن": 11,
+    "اسفند": 12,
+}
+
+# صورت‌های رایج نوشتن روز ماه با حروف
+JALALI_DAY_WORDS = [
+    "سی و یک", "بیست و نه", "بیست و هشت", "بیست و هفت",
+    "بیست و شش", "بیست و پنج", "بیست و چهار", "بیست و سه",
+    "بیست و دو", "بیست و یک", "بیست", "سی",
+    "نوزده", "هجده", "هفده", "شانزده", "پانزده", "چهارده",
+    "سیزده", "دوازده", "یازده", "ده", "نه", "هشت", "هفت",
+    "شش", "پنج", "چهار", "سه", "دو", "یک", "یه",
+]
+
+_DAY_WORD_PATTERN = "(?:" + "|".join(
+    re.escape(word) for word in sorted(JALALI_DAY_WORDS, key=len, reverse=True)
+) + ")"
+_DAY_PATTERN = rf"(?:\d{{1,2}}|{_DAY_WORD_PATTERN})(?:\s*ام)?"
+_MONTH_PATTERN = "(?:" + "|".join(
+    re.escape(month) for month in sorted(JALALI_MONTHS, key=len, reverse=True)
+) + ")"
+_YEAR_PATTERN = r"(?:13\d{2}|14\d{2})"
+
+NAMED_JALALI_DATE_PATTERNS = [
+    # 3 شهریور 1405 / سه شهریور 1405
+    re.compile(
+        rf"(?<!\w)(?P<day>{_DAY_PATTERN})\s+(?:ماه\s+)?"
+        rf"(?P<month>{_MONTH_PATTERN})(?:\s+ماه)?\s+(?P<year>{_YEAR_PATTERN})(?!\d)"
+    ),
+    # شهریور 3 1405
+    re.compile(
+        rf"(?<!\w)(?P<month>{_MONTH_PATTERN})\s+(?P<day>{_DAY_PATTERN})"
+        rf"\s+(?P<year>{_YEAR_PATTERN})(?!\d)"
+    ),
+    # 1405 شهریور 3
+    re.compile(
+        rf"(?<!\d)(?P<year>{_YEAR_PATTERN})\s+(?P<month>{_MONTH_PATTERN})"
+        rf"\s+(?P<day>{_DAY_PATTERN})(?!\w)"
+    ),
+]
+
+NUMERIC_JALALI_DATE_PATTERN = re.compile(
+    r"(?<!\d)(1[34]\d{2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{1,2})(?!\d)"
+)
+
+
+def _jalali_day_number(value: str):
+    value = value.strip()
+    value = re.sub(r"\s*ام$", "", value)
+    if value.isdigit():
+        return int(value)
+    return parse_persian_number_words(value)
+
+
+def _named_jalali_match(text: str):
+    normalized = normalize_text(text)
+    for pattern in NAMED_JALALI_DATE_PATTERNS:
+        match = pattern.search(normalized)
+        if match:
+            return match
+    return None
+
+
+def has_explicit_jalali_date(text: str) -> bool:
+    normalized = normalize_text(text)
+    if NUMERIC_JALALI_DATE_PATTERN.search(normalized):
+        return True
+    return _named_jalali_match(normalized) is not None
+
+
 def parse_jalali_date(text: str):
+    normalized = normalize_text(text)
 
-    text = normalize_digits(text)
+    match = NUMERIC_JALALI_DATE_PATTERN.search(normalized)
+    if match:
+        year, month, day = map(int, match.groups())
+        try:
+            return jdatetime.date(year, month, day).togregorian()
+        except ValueError:
+            return None
 
-    pattern = (
-        r"(?<!\d)"
-        r"(1[34]\d{2})"
-        r"[\/\-.]"
-        r"(\d{1,2})"
-        r"[\/\-.]"
-        r"(\d{1,2})"
-        r"(?!\d)"
-    )
-
-    match = re.search(
-        pattern,
-        text
-    )
-
+    match = _named_jalali_match(normalized)
     if not match:
         return None
 
-    year = int(match.group(1))
-    month = int(match.group(2))
-    day = int(match.group(3))
+    year = int(match.group("year"))
+    month_name = match.group("month")
+    month = JALALI_MONTHS.get(month_name)
+    day = _jalali_day_number(match.group("day"))
+
+    if month is None or day is None:
+        return None
 
     try:
-
-        jalali_date = jdatetime.date(
-            year,
-            month,
-            day
-        )
-
-        return jalali_date.togregorian()
-
+        return jdatetime.date(year, month, day).togregorian()
     except ValueError:
-
         return None
+
+
+def remove_date_expressions(text: str) -> str:
+    """حذف تاریخ از متن برای جلوگیری از اشتباه گرفتن اجزای تاریخ با مبلغ یا شرح."""
+    result = normalize_text(text)
+
+    # تاریخ‌های عددی جلالی مثل 1405/07/14
+    result = NUMERIC_JALALI_DATE_PATTERN.sub(" ", result)
+
+    # تاریخ‌های متنی مثل 3 شهریور 1405 یا سه شهریور 1405
+    for pattern in NAMED_JALALI_DATE_PATTERNS:
+        result = pattern.sub(" ", result)
+
+    # عبارت‌های تاریخ نسبی
+    relative_patterns = [
+        r"پس\s*فردا", r"پریروز", r"دیروز", r"فردا", r"امروز"
+    ]
+    for pattern in relative_patterns:
+        result = re.sub(pattern, " ", result)
+
+    return " ".join(result.split())
 
 
 # ============================================================
 # AMOUNT
 # ============================================================
 
-def parse_amount(text: str):
 
-    normalized = normalize_text(text)
+def _parse_numeric_amount_prefix(text: str):
+    """استخراج عددی که در ابتدای عبارت مبلغ قرار دارد."""
+    value_text = text.strip().lstrip(":：=،,؛; ")
+    if not value_text:
+        return None
 
-    # --------------------------------------------------------
-    # مثال:
     # 2 میلیون و 500 هزار
-    # --------------------------------------------------------
-
-    million_match = re.search(
-        r"(?<!\d)(\d[\d,]*)\s*میلیون",
-        normalized
+    combo = re.match(
+        r"^(\d[\d,]*)\s*میلیون(?:\s*و\s*(\d[\d,]*)\s*هزار)?",
+        value_text,
     )
-
-    thousand_after_million = re.search(
-        r"میلیون\s*(?:و\s*)?(\d[\d,]*)\s*هزار",
-        normalized
-    )
-
-    if million_match:
-
-        million_value = int(
-            million_match.group(1).replace(",", "")
-        )
-
-        amount = (
-            million_value
-            * 1_000_000
-        )
-
-        if thousand_after_million:
-
-            thousand_value = int(
-                thousand_after_million.group(1)
-                .replace(",", "")
-            )
-
-            amount += (
-                thousand_value
-                * 1_000
-            )
-
+    if combo:
+        amount = int(combo.group(1).replace(",", "")) * 1_000_000
+        if combo.group(2):
+            amount += int(combo.group(2).replace(",", "")) * 1_000
         return amount
 
-    # --------------------------------------------------------
-    # عدد + هزار
-    # مثال:
-    # 200 هزار
-    # --------------------------------------------------------
+    match = re.match(r"^(\d[\d,]*)\s*(میلیارد|میلیون|هزار)?", value_text)
+    if not match:
+        return None
 
-    thousand_match = re.search(
-        r"(?<!\d)(\d[\d,]*)\s*هزار",
-        normalized
-    )
+    number = int(match.group(1).replace(",", ""))
+    scale = match.group(2)
+    multiplier = {None: 1, "هزار": 1_000, "میلیون": 1_000_000, "میلیارد": 1_000_000_000}[scale]
+    amount = number * multiplier
 
-    if thousand_match:
+    # اگر عدد به صورت "2 میلیون و 500 هزار" نوشته شده باشد، بخش هزارم را هم لحاظ کن.
+    rest = value_text[match.end():]
+    if scale == "میلیون":
+        extra = re.match(r"\s*و\s*(\d[\d,]*)\s*هزار", rest)
+        if extra:
+            amount += int(extra.group(1).replace(",", "")) * 1_000
 
-        value = int(
-            thousand_match.group(1)
-            .replace(",", "")
-        )
+    return amount
 
-        return value * 1_000
 
-    # --------------------------------------------------------
-    # عدد معمولی
-    # مثال:
-    # 2500000
-    # 2,500,000
-    # --------------------------------------------------------
+def _parse_written_amount_prefix(text: str):
+    """خواندن عدد نوشتاری از ابتدای متن؛ متن توضیحی بعد از آن نادیده گرفته می‌شود."""
+    words = normalize_text(text).split()
+    accepted = set(ONES) | set(TENS) | set(HUNDREDS) | {"هزار", "میلیون", "میلیارد", "و"}
+    candidate = []
+    found_number = False
 
-    numeric_matches = re.findall(
-        r"(?<!\d)(\d[\d,]*)(?!\d)",
-        normalized
-    )
+    for word in words:
+        clean_word = word.strip("،,؛;:()[]")
+        if clean_word in accepted:
+            candidate.append(clean_word)
+            if clean_word != "و" and clean_word not in {"هزار", "میلیون", "میلیارد"}:
+                found_number = True
+        else:
+            break
 
-    # تاریخ جلالی را از اعداد حذف می‌کنیم
-    for match in numeric_matches:
+    if not candidate or not found_number:
+        return None
+    return parse_persian_number_words(" ".join(candidate))
 
-        value = match.replace(",", "")
 
-        if len(value) == 8 and value.startswith("14"):
-            continue
+def parse_amount(text: str):
+    normalized = normalize_text(text)
+    # مهم: ابتدا تاریخ را کامل حذف می‌کنیم تا روز و سال به‌عنوان مبلغ انتخاب نشوند.
+    amount_text = remove_date_expressions(normalized)
 
-        try:
-
-            number = int(value)
-
-            if number > 0:
-                return number
-
-        except ValueError:
-            pass
-
-    # --------------------------------------------------------
-    # اعداد نوشتاری
-    # --------------------------------------------------------
-
-    currency_match = re.search(
-        r"(.+?)\s*(?:تومان|تومن|ریال)",
-        normalized
-    )
-
-    if currency_match:
-
-        amount = parse_persian_number_words(
-            currency_match.group(1)
-        )
-
-        if amount is not None:
+    # 1) اولویت اول: مبلغی که صریحاً بعد از «مبلغ» آمده است.
+    label_match = re.search(r"(?:به\s*)?مبلغ\s*[:：=]?\s*(.*)$", amount_text)
+    if label_match:
+        tail = label_match.group(1).strip()
+        amount = _parse_numeric_amount_prefix(tail)
+        if amount is not None and amount > 0:
+            return amount
+        amount = _parse_written_amount_prefix(tail)
+        if amount is not None and amount > 0:
             return amount
 
-    # بدون واحد پول
-    amount = parse_persian_number_words(
-        normalized
+    # 2) مبالغ ترکیبی؛ مانند 2 میلیون و 500 هزار.
+    combo = re.search(
+        r"(?<!\d)(\d[\d,]*)\s*میلیون(?:\s*و\s*(\d[\d,]*)\s*هزار)?",
+        amount_text,
     )
+    if combo:
+        amount = int(combo.group(1).replace(",", "")) * 1_000_000
+        if combo.group(2):
+            amount += int(combo.group(2).replace(",", "")) * 1_000
+        return amount
 
-    if amount is not None:
+    # 3) مبلغ عددی همراه واحد پول؛ مانند 250000 تومان یا 200 هزار تومان.
+    currency_numeric = re.search(
+        r"(?<!\d)(\d[\d,]*)\s*(میلیارد|میلیون|هزار)?\s*(?:تومان|تومن|ریال)(?!\w)",
+        amount_text,
+    )
+    if currency_numeric:
+        amount = _parse_numeric_amount_prefix(currency_numeric.group(0))
+        if amount is not None and amount > 0:
+            return amount
+
+    # 4) مقدار عددی همراه «هزار»، «میلیون» یا «میلیارد».
+    scaled = re.search(r"(?<!\d)(\d[\d,]*)\s*(میلیارد|میلیون|هزار)", amount_text)
+    if scaled:
+        amount = _parse_numeric_amount_prefix(scaled.group(0))
+        if amount is not None and amount > 0:
+            return amount
+
+    # 5) مبلغ نوشتاری با واحد پول؛ مانند «پنجاه هزار تومان».
+    currency_word = re.search(r"(.+?)\s*(?:تومان|تومن|ریال)(?!\w)", amount_text)
+    if currency_word:
+        # اگر عبارت شامل ارقام باشد، آخرین عدد قبل از واحد پول را ترجیح بده.
+        numeric_before_currency = re.search(
+            r"(\d[\d,]*)(?:\s*(?:میلیارد|میلیون|هزار))?\s*$",
+            currency_word.group(1),
+        )
+        if numeric_before_currency:
+            amount = _parse_numeric_amount_prefix(numeric_before_currency.group(0))
+            if amount is not None and amount > 0:
+                return amount
+
+        amount = parse_persian_number_words(currency_word.group(1))
+        if amount is not None and amount > 0:
+            return amount
+
+    # 6) بدون برچسب/واحد: اولین عدد باقی‌مانده بعد از حذف تاریخ.
+    numeric_matches = re.findall(r"(?<!\d)(\d[\d,]*)(?!\d)", amount_text)
+    for match in numeric_matches:
+        try:
+            number = int(match.replace(",", ""))
+            if number > 0:
+                return number
+        except ValueError:
+            continue
+
+    # پشتیبانی از عدد نوشتاری دارای مقیاس پولی، حتی اگر واحد تومان ذکر نشده باشد.
+    written_scaled = re.search(
+        r"((?:[\wآ-ی]+\s+)*(?:هزار|میلیون|میلیارد)(?:\s+و\s+[\wآ-ی]+\s+هزار)?)",
+        amount_text,
+    )
+    if written_scaled:
+        amount = parse_persian_number_words(written_scaled.group(1))
+        if amount is not None and amount > 0:
+            return amount
+
+    # برای متن‌هایی که فقط یک عبارت عددی نوشتاری دارند.
+    amount = _parse_written_amount_prefix(amount_text)
+    if amount is not None and amount > 0:
         return amount
 
     return None
@@ -563,99 +680,30 @@ def detect_category(text: str):
 # ============================================================
 
 def clean_description(text: str):
+    description = remove_date_expressions(text)
 
-    description = normalize_text(text)
+    # برچسب مبلغ را حذف می‌کنیم، نه خود شرح را.
+    description = re.sub(r"(?:به\s*)?مبلغ", " ", description)
 
-    # تاریخ‌های نسبی
+    # اعداد و جداکننده‌های عددی مبلغ
+    description = re.sub(r"(?<!\d)\d[\d,]*(?!\d)", " ", description)
+
+    # واحد پول و واحدهای مقیاس مبلغ
     description = re.sub(
-        r"\bامروز\b",
-        "",
-        description
+        r"(?<!\w)(?:تومان|تومن|ریال|هزار|میلیون|میلیارد)(?!\w)",
+        " ",
+        description,
     )
 
-    description = re.sub(
-        r"\bدیروز\b",
-        "",
-        description
-    )
+    # اعداد نوشتاری‌ای که برای بیان مبلغ استفاده شده‌اند.
+    number_words = list(ONES.keys()) + list(TENS.keys()) + list(HUNDREDS.keys())
+    for word in sorted(number_words, key=len, reverse=True):
+        description = re.sub(rf"(?<!\w){re.escape(word)}(?!\w)", " ", description)
 
-    description = re.sub(
-        r"\bپریروز\b",
-        "",
-        description
-    )
-
-    description = re.sub(
-        r"\bفردا\b",
-        "",
-        description
-    )
-
-    description = re.sub(
-        r"پس\s*فردا",
-        "",
-        description
-    )
-
-    # تاریخ جلالی
-    description = re.sub(
-        r"(?<!\d)"
-        r"1[34]\d{2}"
-        r"[\/\-.]"
-        r"\d{1,2}"
-        r"[\/\-.]"
-        r"\d{1,2}"
-        r"(?!\d)",
-        "",
-        description
-    )
-
-    # اعداد
-    description = re.sub(
-        r"(?<!\d)\d[\d,]*(?!\d)",
-        "",
-        description
-    )
-
-    # واحد پول
-    description = re.sub(
-        r"\b(?:تومان|تومن|ریال)\b",
-        "",
-        description
-    )
-
-    # واحدهای مبلغ
-    description = re.sub(
-        r"\b(?:هزار|میلیون|میلیارد)\b",
-        "",
-        description
-    )
-
-    # اعداد نوشتاری
-    number_words = (
-        list(ONES.keys())
-        + list(TENS.keys())
-        + list(HUNDREDS.keys())
-    )
-
-    for word in sorted(
-        number_words,
-        key=len,
-        reverse=True
-    ):
-
-        description = re.sub(
-            rf"\b{re.escape(word)}\b",
-            "",
-            description
-        )
-
-    # فاصله‌های اضافی
-    description = " ".join(
-        description.split()
-    )
-
-    return description.strip()
+    description = re.sub(r"\s+و\s+", " ", description)
+    description = re.sub(r"\s+", " ", description)
+    description = description.strip(" \t\r\n،,؛;:.-")
+    return description
 
 
 # ============================================================
@@ -698,11 +746,10 @@ def parse_expense(text: str):
         )
 
         if jalali_date is not None:
-
             expense_date = jalali_date
-
+        elif has_explicit_jalali_date(normalized):
+            raise ValueError("تاریخ جلالی واردشده معتبر نیست. روز، ماه و سال را بررسی کنید.")
         else:
-
             expense_date = date.today()
 
     # --------------------------------------------------------
@@ -714,19 +761,17 @@ def parse_expense(text: str):
     )
 
     # --------------------------------------------------------
-    # CATEGORY
-    # --------------------------------------------------------
-
-    category = detect_category(
-        normalized
-    )
-
-    # --------------------------------------------------------
     # DESCRIPTION
     # --------------------------------------------------------
 
     description = clean_description(
         normalized
+    )
+
+    # تشخیص دسته‌بندی از شرحِ پاک‌سازی‌شده انجام می‌شود تا کلماتی مثل «مبلغ»
+    # به‌اشتباه با کلیدواژه‌هایی مثل «مبل» تطبیق پیدا نکنند.
+    category = detect_category(
+        description or normalized
     )
 
     if not description:
