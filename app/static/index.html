@@ -14,7 +14,7 @@
 
     <link
         rel="stylesheet"
-        href="/static/style.css"
+        href="/static/style.css?v=20261011-account-transfers"
     >
 
 </head>
@@ -473,6 +473,72 @@
 
     </main>
 
+
+
+    <!-- ================= ACCOUNTS VIEW ================= -->
+    <main id="accountsView" class="app-view" hidden>
+        <div class="accounts-page-heading">
+            <div>
+                <h1>حساب‌های من</h1>
+                <p>مدیریت موجودی پول نقد و حساب‌های بانکی</p>
+            </div>
+            <div class="accounts-page-actions">
+                <button type="button" class="secondary-button accounts-transfer-button" id="openAccountTransferButton">↔ انتقال وجه</button>
+                <button type="button" class="primary-button accounts-add-button" id="addAccountButton">+ حساب جدید</button>
+            </div>
+        </div>
+
+        <section class="dashboard-section accounts-overview-section">
+            <div class="accounts-total-card">
+                <div class="accounts-total-label">مجموع موجودی حساب‌های فعال</div>
+                <div class="accounts-total-value" id="accountsTotalBalance">۰ تومان</div>
+                <div class="accounts-total-note">بر اساس موجودی اولیه + ورودی‌ها + انتقال‌های دریافتی − هزینه‌ها و انتقال‌های خروجی</div>
+            </div>
+            <div class="accounts-metrics-grid">
+                <article class="accounts-metric-card">
+                    <span class="accounts-metric-icon">💳</span>
+                    <span class="accounts-metric-label">حساب‌های فعال</span>
+                    <strong id="accountsActiveCount">۰</strong>
+                </article>
+                <article class="accounts-metric-card">
+                    <span class="accounts-metric-icon">📉</span>
+                    <span class="accounts-metric-label">هزینه از حساب‌ها</span>
+                    <strong id="accountsSpentTotal">۰ تومان</strong>
+                </article>
+                <article class="accounts-metric-card">
+                    <span class="accounts-metric-icon">📈</span>
+                    <span class="accounts-metric-label">درآمد و واریز</span>
+                    <strong id="accountsCreditTotal">۰ تومان</strong>
+                </article>
+            </div>
+        </section>
+
+        <section class="dashboard-section accounts-list-section">
+            <div class="section-header">
+                <div>
+                    <div class="section-title">حساب‌های شما</div>
+                    <div class="section-subtitle">برای دیدن گردش حساب یا ثبت درآمد و افزایش موجودی، حساب را انتخاب کنید.</div>
+                </div>
+                <button type="button" class="small-action-button" id="refreshAccountsButton" title="بروزرسانی">↻</button>
+            </div>
+            <div class="accounts-list-toolbar">
+                <label class="accounts-inactive-toggle">
+                    <input type="checkbox" id="showInactiveAccounts">
+                    نمایش حساب‌های غیرفعال
+                </label>
+            </div>
+            <div id="accountsStatus" class="accounts-status" role="status" aria-live="polite"></div>
+            <div id="accountsList" class="accounts-list">
+                <div class="loading">در حال دریافت حساب‌ها...</div>
+            </div>
+        </section>
+
+        <div class="accounts-help-note">
+            <strong>نکته:</strong> موجودی از موجودی اولیه + درآمدها و واریزها − هزینه‌های ثبت‌شده محاسبه می‌شود. هزینه‌های قدیمی که به حسابی متصل نبوده‌اند، خودکار به حسابی نسبت داده نمی‌شوند. ثبت هزینه بیشتر از موجودی قابل استفاده پذیرفته نمی‌شود.
+        </div>
+    </main>
+
+
     <!-- ================= BOTTOM NAV ================= -->
 
 
@@ -553,6 +619,133 @@
 </div>
 
 
+
+
+<!-- =====================================================
+     ACCOUNT CREATE / EDIT MODAL
+===================================================== -->
+<div class="modal-overlay hidden" id="accountModal">
+    <div class="modal-card account-modal-card">
+        <div class="modal-header">
+            <h2 id="accountModalTitle">ایجاد حساب جدید</h2>
+            <button class="modal-close" id="closeAccountModalButton" type="button" aria-label="بستن">×</button>
+        </div>
+        <div class="edit-form">
+            <label for="accountNameInput">نام حساب</label>
+            <input type="text" id="accountNameInput" maxlength="100" placeholder="مثلاً: کارت بانک ملت" autocomplete="off">
+
+            <label for="accountTypeInput">نوع حساب</label>
+            <select id="accountTypeInput">
+                <option value="CASH">پول نقد</option>
+                <option value="BANK">حساب بانکی</option>
+                <option value="CARD">کارت بانکی</option>
+            </select>
+
+            <label for="accountInitialBalanceInput">موجودی اولیه (تومان)</label>
+            <input type="text" id="accountInitialBalanceInput" inputmode="numeric" placeholder="مثلاً ۵۰۰۰۰۰۰" autocomplete="off">
+            <div class="account-form-help">موجودی اولیه مبلغی است که هنگام شروع استفاده از برنامه در این حساب داشته‌اید.</div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="secondary-button" id="cancelAccountModalButton">انصراف</button>
+            <button type="button" class="primary-button" id="saveAccountButton">ذخیره حساب</button>
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================
+     ACCOUNT TRANSACTIONS MODAL
+===================================================== -->
+<div class="modal-overlay hidden" id="accountTransactionsModal">
+    <div class="modal-card account-transactions-modal-card">
+        <div class="modal-header">
+            <h2 id="accountTransactionsTitle">گردش حساب</h2>
+            <button class="modal-close" id="closeAccountTransactionsButton" type="button" aria-label="بستن">×</button>
+        </div>
+        <div class="account-transactions-summary" id="accountTransactionsSubtitle"></div>
+        <div id="accountTransactionsList" class="account-transactions-list">
+            <div class="loading">در حال دریافت گردش حساب...</div>
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================
+     ACCOUNT CREDIT / INCOME MODAL
+===================================================== -->
+<div class="modal-overlay hidden" id="accountCreditModal">
+    <div class="modal-card account-modal-card">
+        <div class="modal-header">
+            <h2 id="accountCreditModalTitle">ثبت درآمد یا افزایش موجودی</h2>
+            <button class="modal-close" id="closeAccountCreditModalButton" type="button" aria-label="بستن">×</button>
+        </div>
+        <div class="edit-form">
+            <div class="account-form-help" id="accountCreditAccountLabel">حساب انتخاب‌شده</div>
+
+            <label for="accountCreditTypeInput">نوع ثبت</label>
+            <select id="accountCreditTypeInput" class="account-select-input">
+                <option value="DEPOSIT">افزایش موجودی / واریز به حساب</option>
+                <option value="INCOME">درآمد جدید</option>
+            </select>
+
+            <label for="accountCreditAmountInput">مبلغ (تومان)</label>
+            <input type="text" id="accountCreditAmountInput" inputmode="numeric" autocomplete="off" placeholder="مثلاً ۱۰۰۰۰۰۰">
+
+            <label for="accountCreditDescriptionInput">شرح</label>
+            <input type="text" id="accountCreditDescriptionInput" maxlength="500" autocomplete="off" placeholder="مثلاً حقوق مهر یا شارژ کیف پول">
+
+            <label for="accountCreditDateJalali">تاریخ (شمسی)</label>
+            <div class="report-date-input-wrap">
+                <input type="text" id="accountCreditDateJalali" class="report-jalali-date-input" autocomplete="off" inputmode="text" spellcheck="false" placeholder="مثلاً ۱۴۰۵/۰۷/۱۹" aria-label="تاریخ درآمد به شمسی" aria-haspopup="dialog" aria-controls="reportJalaliPicker">
+                <button type="button" class="report-date-picker-trigger" data-report-date-picker="accountCreditDateJalali" aria-label="انتخاب تاریخ" title="انتخاب تاریخ">▦</button>
+            </div>
+            <input type="hidden" id="accountCreditDate">
+            <div class="account-form-help">این ثبت موجودی حساب را افزایش می‌دهد؛ «درآمد» جدا از «افزایش موجودی» گزارش می‌شود.</div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="secondary-button" id="cancelAccountCreditModalButton">انصراف</button>
+            <button type="button" class="primary-button" id="saveAccountCreditButton">ثبت</button>
+        </div>
+    </div>
+</div>
+
+<!-- =====================================================
+     ACCOUNT TRANSFER MODAL
+===================================================== -->
+<div class="modal-overlay hidden" id="accountTransferModal">
+    <div class="modal-card account-modal-card account-transfer-modal-card">
+        <div class="modal-header">
+            <h2>انتقال وجه بین حساب‌ها</h2>
+            <button class="modal-close" id="closeAccountTransferModalButton" type="button" aria-label="بستن">×</button>
+        </div>
+        <div class="edit-form">
+            <label for="accountTransferFromInput">از حساب مبدأ</label>
+            <select id="accountTransferFromInput" class="account-select-input"></select>
+
+            <label for="accountTransferToInput">به حساب مقصد</label>
+            <select id="accountTransferToInput" class="account-select-input"></select>
+
+            <div id="accountTransferBalanceHint" class="account-form-help" role="status"></div>
+
+            <label for="accountTransferAmountInput">مبلغ انتقال (تومان)</label>
+            <input type="text" id="accountTransferAmountInput" inputmode="numeric" autocomplete="off" placeholder="مثلاً ۵۰۰۰۰۰">
+
+            <label for="accountTransferDescriptionInput">شرح انتقال</label>
+            <input type="text" id="accountTransferDescriptionInput" maxlength="500" autocomplete="off" placeholder="مثلاً انتقال پول به کارت بانکی">
+
+            <label for="accountTransferDateJalali">تاریخ (شمسی)</label>
+            <div class="report-date-input-wrap">
+                <input type="text" id="accountTransferDateJalali" class="report-jalali-date-input" autocomplete="off" inputmode="text" spellcheck="false" placeholder="مثلاً ۱۴۰۵/۰۷/۱۹" aria-label="تاریخ انتقال به شمسی" aria-haspopup="dialog" aria-controls="reportJalaliPicker">
+                <button type="button" class="report-date-picker-trigger" data-report-date-picker="accountTransferDateJalali" aria-label="انتخاب تاریخ" title="انتخاب تاریخ">▦</button>
+            </div>
+            <input type="hidden" id="accountTransferDate">
+            <div class="account-form-help">انتقال وجه درآمد یا هزینه محسوب نمی‌شود؛ فقط موجودی دو حساب جابه‌جا می‌شود.</div>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="secondary-button" id="cancelAccountTransferModalButton">انصراف</button>
+            <button type="button" class="primary-button" id="saveAccountTransferButton">تأیید انتقال</button>
+        </div>
+    </div>
+</div>
+
 <!-- =====================================================
      CONFIRMATION MODAL
      ===================================================== -->
@@ -619,6 +812,16 @@
                 id="confirmationDate"
             >
                 -
+            </div>
+
+            <div class="confirmation-account-field">
+                <label for="confirmationAccount">حساب پرداخت‌کننده</label>
+                <select id="confirmationAccount" class="account-select-input">
+                    <option value="">در حال دریافت حساب‌ها...</option>
+                </select>
+                <div id="confirmationAccountHint" class="confirmation-account-hint" role="status"></div>
+                <button type="button" id="increaseAccountFromConfirmation" class="text-action-button hidden">＋ افزایش موجودی حساب</button>
+                <button type="button" class="text-action-button" id="createAccountFromConfirmation">+ ایجاد حساب جدید</button>
             </div>
 
         </div>
@@ -722,16 +925,38 @@
 
             </select>
 
+            <label for="editExpenseAccount">حساب پرداخت‌کننده</label>
+            <select id="editExpenseAccount" class="account-select-input">
+                <option value="">بدون تغییر / حساب انتخاب نشده</option>
+            </select>
 
-            <label for="editDate">
-                تاریخ
+
+            <label for="editDateJalali">
+                تاریخ (شمسی)
             </label>
 
-
-            <input
-                type="date"
-                id="editDate"
-            >
+            <div class="report-date-input-wrap edit-date-input-wrap">
+                <input
+                    type="text"
+                    id="editDateJalali"
+                    class="report-jalali-date-input"
+                    autocomplete="off"
+                    inputmode="text"
+                    spellcheck="false"
+                    placeholder="مثلاً 1405/07/19"
+                    aria-label="تاریخ هزینه به شمسی"
+                    aria-haspopup="dialog"
+                    aria-controls="reportJalaliPicker"
+                >
+                <button
+                    type="button"
+                    class="report-date-picker-trigger"
+                    data-report-date-picker="editDateJalali"
+                    aria-label="انتخاب تاریخ هزینه"
+                    title="انتخاب تاریخ"
+                >▦</button>
+            </div>
+            <input type="hidden" id="editDate">
 
         </div>
 
@@ -870,7 +1095,7 @@
      ===================================================== -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=20261011-account-transfers"></script>
 
 
 </body>

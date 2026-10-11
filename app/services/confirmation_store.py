@@ -1,12 +1,8 @@
 from datetime import datetime, timedelta
 from uuid import uuid4
-
 from app.database import get_connection
 
-
 CONFIRMATION_TTL_MINUTES = 10
-
-
 def create_confirmation(
     expense: dict,
     original_text: str | None = None
@@ -62,7 +58,6 @@ def create_confirmation(
 
     finally:
         connection.close()
-
 
 def get_confirmation(confirmation_id: str):
     connection = get_connection()

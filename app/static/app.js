@@ -3,6 +3,14 @@
 ===================================================== */
 
 let currentConfirmationId = null;
+let currentConfirmationData = null;
+let currentAccountEditId = null;
+let currentAccountCreditId = null;
+let creditFormReturnToConfirmation = false;
+let currentAccountTransactionsId = null;
+let accountFormReturnToConfirmation = false;
+let currentAccounts = [];
+let includeInactiveAccounts = false;
 let currentEditExpenseId = null;
 let currentDeleteExpenseId = null;
 
@@ -2883,137 +2891,111 @@ async function submitExpenseText() {
    SHOW CONFIRMATION
 ===================================================== */
 
-function showConfirmation(
-    data
-) {
+function showConfirmation(data, preferredAccountId = null) {
+    if (!requireFeatureAccess()) return;
 
-    if (
-        !requireFeatureAccess()
-    ) {
+    currentConfirmationId = data.confirmation_id;
+    currentConfirmationData = data;
+    const expense = data.expense || {};
 
-        return;
-    }
+    const descriptionElement = document.getElementById("confirmationDescription");
+    const amountElement = document.getElementById("confirmationAmount");
+    const categoryElement = document.getElementById("confirmationCategory");
+    const dateElement = document.getElementById("confirmationDate");
 
+    if (descriptionElement) descriptionElement.textContent = expense.description || "-";
+    if (amountElement) amountElement.textContent = formatMoney(expense.amount || 0);
+    if (categoryElement) categoryElement.textContent = expense.category || "-";
+    if (dateElement) dateElement.textContent = toPersianDate(expense.expense_date);
 
-    currentConfirmationId =
-        data.confirmation_id;
+    const modal = document.getElementById("confirmationModal");
+    if (modal) modal.classList.remove("hidden");
 
-
-    const expense =
-        data.expense ||
-        {};
-
-
-    const descriptionElement =
-        document.getElementById(
-            "confirmationDescription"
-        );
-
-
-    const amountElement =
-        document.getElementById(
-            "confirmationAmount"
-        );
-
-
-    const categoryElement =
-        document.getElementById(
-            "confirmationCategory"
-        );
-
-
-    const dateElement =
-        document.getElementById(
-            "confirmationDate"
-        );
-
-
-    if (
-        descriptionElement
-    ) {
-
-        descriptionElement.textContent =
-            expense.description ||
-            "-";
-    }
-
-
-    if (
-        amountElement
-    ) {
-
-        amountElement.textContent =
-            formatMoney(
-                expense.amount ||
-                0
-            );
-    }
-
-
-    if (
-        categoryElement
-    ) {
-
-        categoryElement.textContent =
-            expense.category ||
-            "-";
-    }
-
-
-    if (
-        dateElement
-    ) {
-
-        dateElement.textContent =
-            toPersianDate(
-                expense.expense_date
-            );
-    }
-
-
-    const modal =
-        document.getElementById(
-            "confirmationModal"
-        );
-
-
-    if (
-        modal
-    ) {
-
-        modal.classList.remove(
-            "hidden"
-        );
-    }
+    populateConfirmationAccounts(preferredAccountId);
 }
-
-
-/* =====================================================
-   CLOSE CONFIRMATION
-===================================================== */
 
 function closeConfirmation() {
-
-    const modal =
-        document.getElementById(
-            "confirmationModal"
-        );
-
-
-    if (
-        modal
-    ) {
-
-        modal.classList.add(
-            "hidden"
-        );
-    }
-
-
-    currentConfirmationId =
-        null;
+    const modal = document.getElementById("confirmationModal");
+    if (modal) modal.classList.add("hidden");
+    currentConfirmationId = null;
+    currentConfirmationData = null;
 }
 
+async function populateConfirmationAccounts(preferredAccountId = null) {
+    const select = document.getElementById("confirmationAccount");
+    const hint = document.getElementById("confirmationAccountHint");
+    const confirmButton = document.getElementById("confirmExpenseButton");
+    const createButton = document.getElementById("createAccountFromConfirmation");
+    if (!select) return;
+
+    select.disabled = true;
+    select.innerHTML = '<option value="">در حال دریافت حساب‌ها...</option>';
+    if (hint) hint.textContent = "";
+    if (confirmButton) confirmButton.disabled = true;
+
+    try {
+        const response = await fetch("/api/accounts/");
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.message || "دریافت حساب‌ها ناموفق بود.");
+        }
+
+        const accounts = (data.accounts || []).filter(account => account.is_active);
+        currentAccounts = accounts;
+        select.innerHTML = '<option value="">حساب پرداخت‌کننده را انتخاب کنید</option>';
+
+        const requiredAmount = Number(currentConfirmationData?.expense?.amount || 0);
+        accounts.forEach(account => {
+            const option = document.createElement("option");
+            const balance = Number(account.current_balance || 0);
+            const sufficient = balance >= requiredAmount;
+            option.value = String(account.account_id);
+            option.textContent = `${account.account_name} — ${formatMoney(balance)}${sufficient ? "" : " · موجودی ناکافی"}`;
+            option.disabled = !sufficient;
+            option.dataset.sufficient = sufficient ? "true" : "false";
+            select.appendChild(option);
+        });
+
+        const sufficientAccounts = accounts.filter(account => Number(account.current_balance || 0) >= requiredAmount);
+        if (preferredAccountId && sufficientAccounts.some(a => Number(a.account_id) === Number(preferredAccountId))) {
+            select.value = String(preferredAccountId);
+        } else if (sufficientAccounts.length === 1) {
+            select.value = String(sufficientAccounts[0].account_id);
+        } else if (sufficientAccounts.length === 0) {
+            select.value = "";
+        }
+
+        if (accounts.length === 0) {
+            if (hint) hint.textContent = "برای ثبت این هزینه ابتدا یک حساب ایجاد کنید.";
+            if (createButton) createButton.classList.remove("hidden");
+            document.getElementById("increaseAccountFromConfirmation")?.classList.add("hidden");
+        } else if (sufficientAccounts.length === 0) {
+            if (hint) hint.textContent = "موجودی هیچ‌یک از حساب‌ها برای این هزینه کافی نیست. می‌توانید مستقیماً افزایش موجودی ثبت کنید.";
+            if (createButton) createButton.classList.remove("hidden");
+            document.getElementById("increaseAccountFromConfirmation")?.classList.remove("hidden");
+        } else {
+            if (hint) hint.textContent = "حسابی را انتخاب کنید که موجودی کافی برای پرداخت این هزینه داشته باشد.";
+            if (createButton) createButton.classList.remove("hidden");
+            document.getElementById("increaseAccountFromConfirmation")?.classList.remove("hidden");
+        }
+        select.disabled = accounts.length === 0;
+        syncConfirmationSubmitState();
+    } catch (error) {
+        console.error("populateConfirmationAccounts ERROR:", error);
+        select.innerHTML = '<option value="">حساب‌ها بارگذاری نشدند</option>';
+        if (hint) hint.textContent = "ارتباط با سرویس حساب‌ها برقرار نشد. دوباره تلاش کنید.";
+        if (createButton) createButton.classList.remove("hidden");
+        if (confirmButton) confirmButton.disabled = true;
+    }
+}
+
+function syncConfirmationSubmitState() {
+    const select = document.getElementById("confirmationAccount");
+    const button = document.getElementById("confirmExpenseButton");
+    if (!select || !button || button.textContent.includes("در حال ثبت")) return;
+    const selectedOption = select.selectedOptions?.[0];
+    button.disabled = !select.value || selectedOption?.dataset?.sufficient === "false" || Boolean(selectedOption?.disabled);
+}
 
 /* =====================================================
    CONFIRM EXPENSE
@@ -3038,6 +3020,14 @@ async function confirmExpense() {
         return;
     }
 
+
+    const accountSelect = document.getElementById("confirmationAccount");
+    const selectedAccountId = Number(accountSelect?.value || 0);
+    if (!selectedAccountId) {
+        showToast("لطفاً حساب پرداخت‌کننده را انتخاب کنید.");
+        accountSelect?.focus();
+        return;
+    }
 
     const button =
         document.getElementById(
@@ -3080,7 +3070,10 @@ async function confirmExpense() {
                         JSON.stringify({
 
                             confirmation_id:
-                                currentConfirmationId
+                                currentConfirmationId,
+
+                            account_id:
+                                selectedAccountId
                         })
                 }
             );
@@ -3117,13 +3110,16 @@ async function confirmExpense() {
 
 
             await refreshDashboard();
+            await loadAccounts();
 
         } else {
-
             showToast(
                 data.message ||
                 "ثبت هزینه انجام نشد."
             );
+            if (data.account_id) {
+                await populateConfirmationAccounts(data.account_id);
+            }
         }
 
 
@@ -3373,11 +3369,12 @@ async function openEditExpense(
 
 
         if (dateElement) {
+            dateElement.value = normalizeDateInput(expense.expense_date);
+        }
 
-            dateElement.value =
-                normalizeDateInput(
-                    expense.expense_date
-                );
+        const jalaliDateElement = document.getElementById("editDateJalali");
+        if (jalaliDateElement) {
+            jalaliDateElement.value = reportDateToJalaliInput(expense.expense_date);
         }
 
 
@@ -3390,6 +3387,7 @@ async function openEditExpense(
         await loadEditCategories(
             selectedCategoryId
         );
+        await loadEditAccountOptions(expense.account_id ?? null);
 
 
         const modal =
@@ -3617,6 +3615,9 @@ async function saveEditExpense() {
             "editDate"
         );
 
+    const accountElement = document.getElementById("editExpenseAccount");
+    const accountId = accountElement?.value ? Number(accountElement.value) : null;
+
 
     const amount =
         Number(
@@ -3737,7 +3738,10 @@ async function saveEditExpense() {
                                 ),
 
                             expense_date:
-                                expenseDate
+                                expenseDate,
+
+                            account_id:
+                                accountId
                         })
                 }
             );
@@ -4679,6 +4683,16 @@ function reportDateToJalaliInput(value) {
     return `${parts.year}/${String(parts.month).padStart(2, "0")}/${String(parts.day).padStart(2, "0")}`;
 }
 
+function getReportJalaliHiddenInputId(input) {
+    if (!input) return null;
+    if (input.id === "reportFromDateJalali") return "reportFromDate";
+    if (input.id === "reportToDateJalali") return "reportToDate";
+    if (input.id === "editDateJalali") return "editDate";
+    if (input.id === "accountCreditDateJalali") return "accountCreditDate";
+    if (input.id === "accountTransferDateJalali") return "accountTransferDate";
+    return null;
+}
+
 function createReportJalaliPicker() {
     let picker = document.getElementById("reportJalaliPicker");
     if (picker) return picker;
@@ -4751,8 +4765,8 @@ function openReportJalaliPicker(input) {
     initializeReportJalaliDatePicker();
     const picker = document.getElementById("reportJalaliPicker");
     const parsed = parseReportJalaliInput(input.value);
-    const hiddenId = input.id === "reportFromDateJalali" ? "reportFromDate" : "reportToDate";
-    const hiddenDate = reportDateFromISO(document.getElementById(hiddenId)?.value);
+    const hiddenId = getReportJalaliHiddenInputId(input);
+    const hiddenDate = reportDateFromISO(hiddenId ? document.getElementById(hiddenId)?.value : "");
     const date = parsed.date || hiddenDate || reportDateFromISO(getTodayGregorian());
     const parts = reportGetJalaliParts(date);
     if (!parts) return;
@@ -4829,9 +4843,8 @@ function renderReportJalaliPicker() {
     }
 
     const todayISO = getTodayGregorian();
-    const selectedISO = reportDateFromISO(document.getElementById(
-        input.id === "reportFromDateJalali" ? "reportFromDate" : "reportToDate"
-    )?.value);
+    const hiddenId = getReportJalaliHiddenInputId(input);
+    const selectedISO = reportDateFromISO(hiddenId ? document.getElementById(hiddenId)?.value : "");
     const selectedKey = selectedISO ? reportDateToISO(selectedISO) : "";
 
     for (let day = 1; day <= daysInMonth; day++) {
@@ -4862,8 +4875,8 @@ function selectReportJalaliPickerDate(date) {
     const input = reportJalaliPickerState.input;
     if (!input || !date) return;
     const iso = reportDateToISO(date);
-    const hiddenId = input.id === "reportFromDateJalali" ? "reportFromDate" : "reportToDate";
-    const hidden = document.getElementById(hiddenId);
+    const hiddenId = getReportJalaliHiddenInputId(input);
+    const hidden = hiddenId ? document.getElementById(hiddenId) : null;
     input.value = reportDateToJalaliInput(date);
     if (hidden) hidden.value = iso;
     input.dispatchEvent(new Event("change", { bubbles: true }));
@@ -4879,8 +4892,8 @@ function bindReportJalaliDatePickerInputs() {
 
         const syncHiddenValue = () => {
             const result = parseReportJalaliInput(input.value);
-            const hiddenId = input.id === "reportFromDateJalali" ? "reportFromDate" : "reportToDate";
-            const hidden = document.getElementById(hiddenId);
+            const hiddenId = getReportJalaliHiddenInputId(input);
+            const hidden = hiddenId ? document.getElementById(hiddenId) : null;
             if (!hidden) return;
             if (result.empty) {
                 hidden.value = "";
@@ -5304,15 +5317,548 @@ async function loadReports() {
     }
 }
 
+function accountTypeLabel(type) {
+    return ({ CASH: "پول نقد", BANK: "حساب بانکی", CARD: "کارت بانکی" })[String(type || "CASH").toUpperCase()] || "حساب";
+}
+
+function accountTypeIcon(type) {
+    return ({ CASH: "👛", BANK: "🏦", CARD: "💳" })[String(type || "CASH").toUpperCase()] || "💼";
+}
+
+function normalizeMoneyInput(value) {
+    return String(value ?? "")
+        .replace(/[۰-۹]/g, d => String("۰۱۲۳۴۵۶۷۸۹".indexOf(d)))
+        .replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦٧٨٩".indexOf(d)))
+        .replace(/[٬,،\s]/g, "");
+}
+
+function setAccountsStatus(message = "", isError = false) {
+    const el = document.getElementById("accountsStatus");
+    if (!el) return;
+    el.textContent = message;
+    el.classList.toggle("error", Boolean(isError));
+}
+
+async function loadAccounts() {
+    const list = document.getElementById("accountsList");
+    if (!list) return;
+    list.innerHTML = '<div class="loading">در حال دریافت حساب‌ها...</div>';
+    setAccountsStatus("");
+
+    try {
+        const includeInactive = document.getElementById("showInactiveAccounts")?.checked ?? includeInactiveAccounts;
+        const response = await fetch(`/api/accounts/?include_inactive=${includeInactive ? "true" : "false"}`);
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") throw new Error(data.message || "دریافت حساب‌ها ناموفق بود.");
+
+        currentAccounts = (data.accounts || []).filter(item => item.is_active);
+        const shownAccounts = data.accounts || [];
+        const active = shownAccounts.filter(item => item.is_active);
+        const balanceTotal = active.reduce((sum, item) => sum + Number(item.current_balance || 0), 0);
+        const spentTotal = active.reduce((sum, item) => sum + Number(item.spent_total || 0), 0);
+
+        const balanceEl = document.getElementById("accountsTotalBalance");
+        const countEl = document.getElementById("accountsActiveCount");
+        const spentEl = document.getElementById("accountsSpentTotal");
+        const creditEl = document.getElementById("accountsCreditTotal");
+        const creditTotal = active.reduce((sum, item) => sum + Number(item.credit_total || 0), 0);
+        if (balanceEl) balanceEl.textContent = formatMoney(balanceTotal);
+        if (countEl) countEl.textContent = formatNumber(active.length);
+        if (spentEl) spentEl.textContent = formatMoney(spentTotal);
+        if (creditEl) creditEl.textContent = formatMoney(creditTotal);
+
+        if (!shownAccounts.length) {
+            list.innerHTML = `
+                <div class="accounts-empty-state">
+                    <div class="accounts-empty-icon">💳</div>
+                    <strong>هنوز حسابی ثبت نکرده‌ای</strong>
+                    <p>اولین حساب را بساز؛ مثلاً کیف پول نقدی یا کارت بانکی.</p>
+                    <button type="button" class="primary-button" id="emptyAddAccountButton">ایجاد اولین حساب</button>
+                </div>`;
+            setAccountsStatus("");
+            return;
+        }
+
+        list.innerHTML = shownAccounts.map(account => {
+            const accountId = Number(account.account_id);
+            const type = String(account.account_type || "CASH").toUpperCase();
+            const isActive = Boolean(account.is_active);
+            const spent = Number(account.spent_total || 0);
+            const credits = Number(account.credit_total || 0);
+            const balance = Number(account.current_balance || 0);
+            return `
+                <article class="account-card ${isActive ? "" : "account-card-inactive"}" data-account-id="${accountId}">
+                    <div class="account-card-top">
+                        <div class="account-card-identity">
+                            <div class="account-card-icon">${accountTypeIcon(type)}</div>
+                            <div class="account-card-names">
+                                <h3>${escapeHtml(account.account_name || "حساب بدون نام")}</h3>
+                                <span>${escapeHtml(accountTypeLabel(type))}${isActive ? "" : " · غیرفعال"}</span>
+                            </div>
+                        </div>
+                        <div class="account-card-menu">
+                            <button type="button" class="account-icon-action" data-account-action="edit" data-account-id="${accountId}" title="ویرایش حساب" aria-label="ویرایش حساب">✏️</button>
+                            ${isActive
+                                ? `<button type="button" class="account-icon-action account-icon-danger" data-account-action="deactivate" data-account-id="${accountId}" title="غیرفعال‌سازی" aria-label="غیرفعال‌سازی حساب">⏸</button>`
+                                : `<button type="button" class="account-icon-action" data-account-action="activate" data-account-id="${accountId}" title="فعال‌سازی" aria-label="فعال‌سازی حساب">▶</button>`}
+                        </div>
+                    </div>
+                    <div class="account-balance-block ${balance < 0 ? "account-balance-negative" : ""}">
+                        <span>موجودی فعلی</span>
+                        <strong>${formatMoney(balance)}</strong>
+                    </div>
+                    <div class="account-card-stats">
+                        <div><span>موجودی اولیه</span><strong>${formatMoney(Number(account.initial_balance || 0))}</strong></div>
+                        <div><span>ورودی‌ها</span><strong>${formatMoney(credits)}</strong></div>
+                        <div><span>هزینه ثبت‌شده</span><strong>${formatMoney(spent)}</strong></div>
+                        <div><span>تعداد هزینه</span><strong>${formatNumber(Number(account.expense_count || 0))}</strong></div>
+                    </div>
+                    ${isActive ? `<button type="button" class="account-credit-button" data-account-action="credit" data-account-id="${accountId}">＋ ثبت درآمد / افزایش موجودی</button>` : ""}
+                    <button type="button" class="account-transactions-button" data-account-action="history" data-account-id="${accountId}">
+                        مشاهده گردش حساب <span aria-hidden="true">←</span>
+                    </button>
+                </article>`;
+        }).join("");
+        setAccountsStatus(`${formatNumber(shownAccounts.length)} حساب نمایش داده شد.`);
+    } catch (error) {
+        console.error("loadAccounts ERROR:", error);
+        list.innerHTML = '<div class="empty-state">خطا در دریافت حساب‌ها. سرویس حساب‌ها و اتصال Oracle را بررسی کنید.</div>';
+        setAccountsStatus(error.message || "خطا در دریافت حساب‌ها.", true);
+    }
+}
+
+function openAccountForm(account = null) {
+    currentAccountEditId = account ? Number(account.account_id) : null;
+    const modal = document.getElementById("accountModal");
+    const title = document.getElementById("accountModalTitle");
+    const nameInput = document.getElementById("accountNameInput");
+    const typeInput = document.getElementById("accountTypeInput");
+    const balanceInput = document.getElementById("accountInitialBalanceInput");
+    const saveButton = document.getElementById("saveAccountButton");
+
+    if (title) title.textContent = account ? "ویرایش حساب" : "ایجاد حساب جدید";
+    if (nameInput) nameInput.value = account?.account_name || "";
+    if (typeInput) typeInput.value = String(account?.account_type || "CASH").toUpperCase();
+    if (balanceInput) balanceInput.value = account ? String(account.initial_balance || 0) : "0";
+    if (saveButton) saveButton.textContent = account ? "ذخیره تغییرات" : "ذخیره حساب";
+    if (modal) modal.classList.remove("hidden");
+    setTimeout(() => nameInput?.focus(), 50);
+}
+
+function closeAccountForm(restoreConfirmation = true) {
+    document.getElementById("accountModal")?.classList.add("hidden");
+    currentAccountEditId = null;
+    if (restoreConfirmation && accountFormReturnToConfirmation && currentConfirmationData) {
+        accountFormReturnToConfirmation = false;
+        showConfirmation(currentConfirmationData);
+    }
+}
+
+async function saveAccount() {
+    const name = document.getElementById("accountNameInput")?.value.trim() || "";
+    const type = document.getElementById("accountTypeInput")?.value || "CASH";
+    const balanceRaw = normalizeMoneyInput(document.getElementById("accountInitialBalanceInput")?.value || "0");
+    const balance = Number(balanceRaw || 0);
+    if (!name) return showToast("نام حساب را وارد کنید.");
+    if (!Number.isFinite(balance) || balance < 0 || !Number.isSafeInteger(balance)) return showToast("موجودی اولیه باید عدد صحیح و نامنفی باشد.");
+
+    const button = document.getElementById("saveAccountButton");
+    const isEditing = currentAccountEditId !== null;
+    const defaultButtonText = isEditing ? "ذخیره تغییرات" : "ذخیره حساب";
+    if (button) { button.disabled = true; button.textContent = "در حال ذخیره..."; }
+    try {
+        const url = isEditing ? `/api/accounts/${currentAccountEditId}` : "/api/accounts/";
+        const response = await fetch(url, {
+            method: isEditing ? "PUT" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ account_name: name, account_type: type, initial_balance: balance })
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") throw new Error(data.message || "ذخیره حساب انجام نشد.");
+
+        const createdAccountId = data.account_id ?? null;
+        closeAccountForm(false);
+        accountFormReturnToConfirmation = false;
+        showToast(data.message || "حساب ذخیره شد.");
+        await loadAccounts();
+
+        if (!isEditing && currentConfirmationId && currentConfirmationData) {
+            showConfirmation(currentConfirmationData, createdAccountId);
+        }
+    } catch (error) {
+        console.error("saveAccount ERROR:", error);
+        showToast(error.message || "خطا در ذخیره حساب.");
+    } finally {
+        if (button) { button.disabled = false; button.textContent = defaultButtonText; }
+    }
+}
+
+function openAccountCreditForm(account) {
+    if (!account || !account.is_active) {
+        showToast("برای ثبت درآمد یا افزایش موجودی، یک حساب فعال انتخاب کنید.");
+        return;
+    }
+
+    currentAccountCreditId = Number(account.account_id);
+    const modal = document.getElementById("accountCreditModal");
+    const title = document.getElementById("accountCreditModalTitle");
+    const label = document.getElementById("accountCreditAccountLabel");
+    const amount = document.getElementById("accountCreditAmountInput");
+    const description = document.getElementById("accountCreditDescriptionInput");
+    const type = document.getElementById("accountCreditTypeInput");
+    const dateHidden = document.getElementById("accountCreditDate");
+    const dateVisible = document.getElementById("accountCreditDateJalali");
+    if (title) title.textContent = "ثبت درآمد یا افزایش موجودی";
+    if (label) label.textContent = `حساب: ${account.account_name} · موجودی فعلی: ${formatMoney(account.current_balance || 0)}`;
+    if (amount) amount.value = "";
+    if (description) description.value = "";
+    if (type) type.value = "DEPOSIT";
+    if (dateHidden) dateHidden.value = getTodayGregorian();
+    if (dateVisible) dateVisible.value = reportDateToJalaliInput(reportDateFromISO(getTodayGregorian()));
+    if (modal) modal.classList.remove("hidden");
+    initializeReportJalaliDatePicker();
+    bindReportJalaliDatePickerInputs();
+    setTimeout(() => amount?.focus(), 50);
+}
+
+function closeAccountCreditForm() {
+    document.getElementById("accountCreditModal")?.classList.add("hidden");
+    currentAccountCreditId = null;
+    if (creditFormReturnToConfirmation && currentConfirmationId && currentConfirmationData) {
+        creditFormReturnToConfirmation = false;
+        const confirmationModal = document.getElementById("confirmationModal");
+        if (confirmationModal) confirmationModal.classList.remove("hidden");
+        populateConfirmationAccounts();
+    }
+}
+
+async function saveAccountCredit() {
+    if (!currentAccountCreditId) return;
+
+    const type = document.getElementById("accountCreditTypeInput")?.value || "DEPOSIT";
+    const amountRaw = normalizeMoneyInput(document.getElementById("accountCreditAmountInput")?.value || "");
+    const amount = Number(amountRaw);
+    const description = document.getElementById("accountCreditDescriptionInput")?.value.trim() || "";
+    const creditDate = document.getElementById("accountCreditDate")?.value || "";
+
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+        showToast("مبلغ باید عدد صحیح و بیشتر از صفر باشد.");
+        document.getElementById("accountCreditAmountInput")?.focus();
+        return;
+    }
+    if (!description) {
+        showToast("شرح درآمد یا افزایش موجودی را وارد کنید.");
+        document.getElementById("accountCreditDescriptionInput")?.focus();
+        return;
+    }
+    if (!creditDate) {
+        showToast("تاریخ شمسی را به‌درستی انتخاب یا وارد کنید.");
+        document.getElementById("accountCreditDateJalali")?.focus();
+        return;
+    }
+    if (creditDate > getTodayGregorian()) {
+        showToast("تاریخ تراکنش نمی‌تواند در آینده باشد.");
+        return;
+    }
+
+    const button = document.getElementById("saveAccountCreditButton");
+    if (button) {
+        button.disabled = true;
+        button.textContent = "در حال ثبت...";
+    }
+    try {
+        const response = await fetch(`/api/accounts/${currentAccountCreditId}/credits`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                amount,
+                credit_type: type,
+                description,
+                credit_date: creditDate
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") throw new Error(data.message || "ثبت درآمد یا افزایش موجودی انجام نشد.");
+
+        const accountId = currentAccountCreditId;
+        closeAccountCreditForm();
+        showToast(data.message || "تراکنش ثبت شد.");
+        await loadAccounts();
+        if (currentAccountTransactionsId === accountId && !document.getElementById("accountTransactionsModal")?.classList.contains("hidden")) {
+            await openAccountTransactions(accountId);
+        }
+        // Also refresh active expense confirmation account balances if it is currently open.
+        if (currentConfirmationId) await populateConfirmationAccounts(accountId);
+    } catch (error) {
+        console.error("saveAccountCredit ERROR:", error);
+        showToast(error.message || "خطا در ثبت درآمد یا افزایش موجودی.");
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = "ثبت";
+        }
+    }
+}
+
+async function openAccountTransferForm() {
+    const modal = document.getElementById("accountTransferModal");
+    const fromSelect = document.getElementById("accountTransferFromInput");
+    const toSelect = document.getElementById("accountTransferToInput");
+    const amount = document.getElementById("accountTransferAmountInput");
+    const description = document.getElementById("accountTransferDescriptionInput");
+    const dateHidden = document.getElementById("accountTransferDate");
+    const dateVisible = document.getElementById("accountTransferDateJalali");
+
+    let accounts = (currentAccounts || []).filter(account => account.is_active);
+    if (accounts.length < 2) {
+        try {
+            const response = await fetch("/api/accounts/");
+            const data = await response.json();
+            if (response.ok && data.status === "success") {
+                accounts = (data.accounts || []).filter(account => account.is_active);
+                currentAccounts = accounts;
+            }
+        } catch (error) {
+            console.error("openAccountTransferForm account fetch:", error);
+        }
+    }
+    if (accounts.length < 2) {
+        showToast("برای انتقال وجه، حداقل دو حساب فعال لازم است.");
+        return;
+    }
+
+    const optionMarkup = accounts.map(account =>
+        `<option value="${Number(account.account_id)}">${escapeHtml(account.account_name)} · موجودی ${escapeHtml(formatMoney(account.current_balance || 0))}</option>`
+    ).join("");
+    if (fromSelect) fromSelect.innerHTML = optionMarkup;
+    if (toSelect) toSelect.innerHTML = optionMarkup;
+    if (fromSelect) fromSelect.value = String(accounts[0].account_id);
+    if (toSelect) toSelect.value = String(accounts.find(account => Number(account.account_id) !== Number(accounts[0].account_id))?.account_id || accounts[1].account_id);
+
+    if (amount) amount.value = "";
+    if (description) description.value = "انتقال وجه";
+    if (dateHidden) dateHidden.value = getTodayGregorian();
+    if (dateVisible) dateVisible.value = reportDateToJalaliInput(reportDateFromISO(getTodayGregorian()));
+    if (modal) modal.classList.remove("hidden");
+    initializeReportJalaliDatePicker();
+    bindReportJalaliDatePickerInputs();
+    syncAccountTransferBalanceHint();
+    setTimeout(() => amount?.focus(), 50);
+}
+
+function closeAccountTransferForm() {
+    document.getElementById("accountTransferModal")?.classList.add("hidden");
+}
+
+function syncAccountTransferBalanceHint() {
+    const fromId = Number(document.getElementById("accountTransferFromInput")?.value || 0);
+    const toId = Number(document.getElementById("accountTransferToInput")?.value || 0);
+    const fromAccount = (currentAccounts || []).find(account => Number(account.account_id) === fromId);
+    const toAccount = (currentAccounts || []).find(account => Number(account.account_id) === toId);
+    const hint = document.getElementById("accountTransferBalanceHint");
+    if (!hint) return;
+    if (fromId && toId && fromId === toId) {
+        hint.textContent = "حساب مبدأ و مقصد باید متفاوت باشند.";
+        hint.classList.add("error");
+        return;
+    }
+    hint.classList.remove("error");
+    hint.textContent = `موجودی مبدأ: ${formatMoney(fromAccount?.current_balance || 0)} · موجودی مقصد: ${formatMoney(toAccount?.current_balance || 0)}`;
+}
+
+async function saveAccountTransfer() {
+    const fromId = Number(document.getElementById("accountTransferFromInput")?.value || 0);
+    const toId = Number(document.getElementById("accountTransferToInput")?.value || 0);
+    const amountRaw = normalizeMoneyInput(document.getElementById("accountTransferAmountInput")?.value || "");
+    const amount = Number(amountRaw);
+    const description = document.getElementById("accountTransferDescriptionInput")?.value.trim() || "انتقال وجه";
+    const transferDate = document.getElementById("accountTransferDate")?.value || "";
+
+    if (!fromId || !toId || fromId === toId) {
+        showToast("لطفاً دو حساب متفاوت برای مبدأ و مقصد انتخاب کنید.");
+        return;
+    }
+    if (!Number.isSafeInteger(amount) || amount <= 0) {
+        showToast("مبلغ انتقال باید عدد صحیح و بیشتر از صفر باشد.");
+        document.getElementById("accountTransferAmountInput")?.focus();
+        return;
+    }
+    if (!transferDate) {
+        showToast("تاریخ شمسی را به‌درستی انتخاب یا وارد کنید.");
+        document.getElementById("accountTransferDateJalali")?.focus();
+        return;
+    }
+    if (transferDate > getTodayGregorian()) {
+        showToast("تاریخ انتقال نمی‌تواند در آینده باشد.");
+        return;
+    }
+
+    const button = document.getElementById("saveAccountTransferButton");
+    if (button) {
+        button.disabled = true;
+        button.textContent = "در حال ثبت...";
+    }
+    try {
+        const response = await fetch("/api/accounts/transfers", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                from_account_id: fromId,
+                to_account_id: toId,
+                amount,
+                description,
+                transfer_date: transferDate
+            })
+        });
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.message || "انتقال وجه ثبت نشد.");
+        }
+        closeAccountTransferForm();
+        showToast(data.message || "انتقال وجه با موفقیت ثبت شد.");
+        await loadAccounts();
+        const historyModal = document.getElementById("accountTransactionsModal");
+        if (currentAccountTransactionsId && historyModal && !historyModal.classList.contains("hidden") &&
+            [fromId, toId].includes(Number(currentAccountTransactionsId))) {
+            await openAccountTransactions(Number(currentAccountTransactionsId));
+        }
+    } catch (error) {
+        console.error("saveAccountTransfer ERROR:", error);
+        showToast(error.message || "خطا در ثبت انتقال وجه.");
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = "تأیید انتقال";
+        }
+    }
+}
+
+async function loadEditAccountOptions(selectedAccountId = null) {
+    const select = document.getElementById("editExpenseAccount");
+    if (!select) return;
+    select.innerHTML = '<option value="">بدون تغییر / حساب انتخاب نشده</option>';
+    try {
+        const response = await fetch("/api/accounts/");
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") return;
+        const accounts = (data.accounts || []).filter(account => account.is_active);
+        for (const account of accounts) {
+            const option = document.createElement("option");
+            option.value = String(account.account_id);
+            option.textContent = `${account.account_name} (${accountTypeLabel(account.account_type)})`;
+            select.appendChild(option);
+        }
+        if (selectedAccountId && accounts.some(a => Number(a.account_id) === Number(selectedAccountId))) {
+            select.value = String(selectedAccountId);
+        }
+    } catch (error) {
+        console.error("loadEditAccountOptions ERROR:", error);
+    }
+}
+
+async function openAccountTransactions(accountId) {
+    const modal = document.getElementById("accountTransactionsModal");
+    const title = document.getElementById("accountTransactionsTitle");
+    const subtitle = document.getElementById("accountTransactionsSubtitle");
+    const list = document.getElementById("accountTransactionsList");
+    currentAccountTransactionsId = Number(accountId);
+    if (modal) modal.classList.remove("hidden");
+    if (title) title.textContent = "گردش حساب";
+    if (subtitle) subtitle.textContent = "در حال دریافت اطلاعات...";
+    if (list) list.innerHTML = '<div class="loading">در حال دریافت گردش حساب...</div>';
+
+    try {
+        const response = await fetch(`/api/accounts/${Number(accountId)}/transactions?limit=100`);
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") throw new Error(data.message || "گردش حساب دریافت نشد.");
+        if (title) title.textContent = `گردش ${data.account_name || "حساب"}`;
+        if (subtitle) subtitle.textContent = `${formatNumber(data.count || 0)} تراکنش اخیر · ورودی‌ها و انتقال‌های دریافتی سبز، هزینه‌ها و انتقال‌های خروجی قرمز نمایش داده می‌شوند.`;
+        if (!data.transactions?.length) {
+            if (list) list.innerHTML = '<div class="accounts-empty-state compact"><div class="accounts-empty-icon">🧾</div><p>هنوز تراکنشی به این حساب متصل نشده است.</p></div>';
+            return;
+        }
+        if (list) list.innerHTML = data.transactions.map(transaction => {
+            const incoming = transaction.direction === "in";
+            const sign = incoming ? "+" : "−";
+            const icon = incoming ? "↗" : "↙";
+            const amountClass = incoming ? "incoming" : "outgoing";
+            const label = transaction.transaction_label || transaction.category_name || "تراکنش";
+            return `
+                <div class="account-transaction-row ${incoming ? "account-transaction-incoming" : "account-transaction-outgoing"}">
+                    <div class="account-transaction-icon ${incoming ? "incoming" : "outgoing"}">${icon}</div>
+                    <div class="account-transaction-main">
+                        <strong>${escapeHtml(transaction.description || "بدون توضیح")}</strong>
+                        <span>${escapeHtml(label)} · ${toPersianDate(transaction.expense_date || "")}</span>
+                    </div>
+                    <div class="account-transaction-amount ${amountClass}">${sign}${formatMoney(transaction.amount || 0)}</div>
+                </div>`;
+        }).join("");
+    } catch (error) {
+        console.error("openAccountTransactions ERROR:", error);
+        if (list) list.innerHTML = `<div class="empty-state">${escapeHtml(error.message || "خطا در دریافت گردش حساب")}</div>`;
+    }
+}
+
+async function handleAccountListAction(event) {
+    const button = event.target.closest("[data-account-action]");
+    if (!button) return;
+    const accountId = Number(button.dataset.accountId);
+    const action = button.dataset.accountAction;
+    const account = (currentAccounts || []).find(item => Number(item.account_id) === accountId)
+        || await findAccountForAction(accountId);
+
+    if (action === "edit") {
+        if (account) openAccountForm(account);
+        else showToast("اطلاعات حساب پیدا نشد.");
+        return;
+    }
+    if (action === "history") {
+        await openAccountTransactions(accountId);
+        return;
+    }
+    if (action === "credit") {
+        if (account) openAccountCreditForm(account);
+        else showToast("اطلاعات حساب پیدا نشد.");
+        return;
+    }
+    if (action === "deactivate" && !window.confirm("این حساب غیرفعال شود؟ سوابق هزینه‌ها حذف نمی‌شوند.")) return;
+    if (!(["deactivate", "activate"].includes(action))) return;
+
+    try {
+        const response = await fetch(`/api/accounts/${accountId}/${action}`, { method: "POST" });
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") throw new Error(data.message || "عملیات انجام نشد.");
+        showToast(data.message || "وضعیت حساب تغییر کرد.");
+        await loadAccounts();
+    } catch (error) {
+        showToast(error.message || "خطا در تغییر وضعیت حساب.");
+    }
+}
+
+async function findAccountForAction(accountId) {
+    try {
+        const response = await fetch("/api/accounts/?include_inactive=true");
+        const data = await response.json();
+        if (data.status === "success") return (data.accounts || []).find(item => Number(item.account_id) === Number(accountId)) || null;
+    } catch (error) {
+        console.error("findAccountForAction ERROR:", error);
+    }
+    return null;
+}
+
 function showAppView(viewName) {
     const homeView = document.getElementById("homeView");
     const reportsView = document.getElementById("reportsView");
+    const accountsView = document.getElementById("accountsView");
     const title = document.getElementById("appTitle");
+    const showHome = viewName === "home";
     const showReports = viewName === "reports";
+    const showAccounts = viewName === "accounts";
 
-    if (homeView) homeView.hidden = showReports;
+    if (homeView) homeView.hidden = !showHome;
     if (reportsView) reportsView.hidden = !showReports;
-    if (title) title.textContent = showReports ? "گزارشات" : "مدیریت هزینه";
+    if (accountsView) accountsView.hidden = !showAccounts;
+    if (title) title.textContent = showReports ? "گزارشات" : showAccounts ? "حساب‌ها" : "مدیریت هزینه";
 
     document.querySelectorAll('.bottom-nav-item[data-nav]').forEach(item => {
         item.classList.toggle("active", item.dataset.nav === viewName);
@@ -5322,6 +5868,8 @@ function showAppView(viewName) {
         initializeReportJalaliDatePicker();
         bindReportJalaliDatePickerInputs();
         loadReports();
+    } else if (showAccounts) {
+        loadAccounts();
     }
 }
 
@@ -8839,15 +9387,75 @@ document.addEventListener(
                                 return;
                             }
 
-                            showToast(
-                                "بخش حساب‌ها را در مرحله بعد می‌سازیم."
-                            );
+                            if (nav === "accounts") {
+                                showAppView("accounts");
+                                return;
+                            }
                         }
                     );
                 }
             );
 
         initializeReportControls();
+
+        const accountSelect = document.getElementById("confirmationAccount");
+        if (accountSelect) accountSelect.addEventListener("change", syncConfirmationSubmitState);
+
+        document.getElementById("createAccountFromConfirmation")?.addEventListener("click", () => {
+            accountFormReturnToConfirmation = true;
+            const confirmationModal = document.getElementById("confirmationModal");
+            if (confirmationModal) confirmationModal.classList.add("hidden");
+            showAppView("accounts");
+            openAccountForm();
+        });
+        document.getElementById("increaseAccountFromConfirmation")?.addEventListener("click", () => {
+            const selectedId = Number(document.getElementById("confirmationAccount")?.value || 0);
+            const account = (currentAccounts || []).find(item => Number(item.account_id) === selectedId)
+                || (currentAccounts || [])[0];
+            if (!account) {
+                showToast("ابتدا یک حساب ایجاد کنید.");
+                return;
+            }
+            creditFormReturnToConfirmation = true;
+            document.getElementById("confirmationModal")?.classList.add("hidden");
+            openAccountCreditForm(account);
+        });
+
+        document.getElementById("addAccountButton")?.addEventListener("click", () => openAccountForm());
+        document.getElementById("emptyAddAccountButton")?.addEventListener("click", () => openAccountForm());
+        document.getElementById("saveAccountButton")?.addEventListener("click", saveAccount);
+        document.getElementById("cancelAccountModalButton")?.addEventListener("click", closeAccountForm);
+        document.getElementById("closeAccountModalButton")?.addEventListener("click", closeAccountForm);
+        document.getElementById("closeAccountTransactionsButton")?.addEventListener("click", () => {
+            document.getElementById("accountTransactionsModal")?.classList.add("hidden");
+            currentAccountTransactionsId = null;
+        });
+        document.getElementById("saveAccountCreditButton")?.addEventListener("click", saveAccountCredit);
+        document.getElementById("cancelAccountCreditModalButton")?.addEventListener("click", closeAccountCreditForm);
+        document.getElementById("closeAccountCreditModalButton")?.addEventListener("click", closeAccountCreditForm);
+        document.getElementById("openAccountTransferButton")?.addEventListener("click", openAccountTransferForm);
+        document.getElementById("saveAccountTransferButton")?.addEventListener("click", saveAccountTransfer);
+        document.getElementById("cancelAccountTransferModalButton")?.addEventListener("click", closeAccountTransferForm);
+        document.getElementById("closeAccountTransferModalButton")?.addEventListener("click", closeAccountTransferForm);
+        document.getElementById("accountTransferFromInput")?.addEventListener("change", syncAccountTransferBalanceHint);
+        document.getElementById("accountTransferToInput")?.addEventListener("change", syncAccountTransferBalanceHint);
+        document.getElementById("refreshAccountsButton")?.addEventListener("click", loadAccounts);
+        document.getElementById("showInactiveAccounts")?.addEventListener("change", event => {
+            includeInactiveAccounts = Boolean(event.target.checked);
+            loadAccounts();
+        });
+        document.getElementById("accountsList")?.addEventListener("click", handleAccountListAction);
+        document.getElementById("accountsList")?.addEventListener("click", event => {
+            if (event.target.closest("#emptyAddAccountButton")) openAccountForm();
+        });
+        const formatMoneyTyping = event => {
+            const input = event.target;
+            const cleaned = normalizeMoneyInput(input.value);
+            if (cleaned && /^\d+$/.test(cleaned)) input.value = cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        };
+        document.getElementById("accountInitialBalanceInput")?.addEventListener("input", formatMoneyTyping);
+        document.getElementById("accountCreditAmountInput")?.addEventListener("input", formatMoneyTyping);
+        document.getElementById("accountTransferAmountInput")?.addEventListener("input", formatMoneyTyping);
 
 
         /* =================================================

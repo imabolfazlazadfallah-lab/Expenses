@@ -255,7 +255,44 @@ JALALI_MONTHS = {
     "اسفند": 12,
 }
 
-# صورت‌های رایج نوشتن روز ماه با حروف
+# روزهای تقویم به شکل عددی، شمارشی و ترتیبی فارسی.
+# پشتیبانی از نمونه‌هایی مانند: 3 مهر، سه مهر، سوم مهر، بیست و سوم مهر، سی و یکم مهر.
+JALALI_DAY_ORDINALS = {
+    "اول": 1, "اولین": 1, "یکم": 1,
+    "دوم": 2,
+    "سوم": 3,
+    "چهارم": 4,
+    "پنجم": 5,
+    "ششم": 6,
+    "هفتم": 7,
+    "هشتم": 8,
+    "نهم": 9,
+    "دهم": 10,
+    "یازدهم": 11,
+    "دوازدهم": 12,
+    "سیزدهم": 13,
+    "چهاردهم": 14,
+    "پانزدهم": 15,
+    "شانزدهم": 16,
+    "هفدهم": 17,
+    "هجدهم": 18,
+    "نوزدهم": 19,
+    "بیستم": 20,
+    "بیست و یکم": 21,
+    "بیست و دوم": 22,
+    "بیست و سوم": 23,
+    "بیست و چهارم": 24,
+    "بیست و پنجم": 25,
+    "بیست و ششم": 26,
+    "بیست و هفتم": 27,
+    "بیست و هشتم": 28,
+    "بیست و نهم": 29,
+    "سی ام": 30,
+    "سی‌ام": 30,
+    "سی و یکم": 31,
+}
+
+# صورت‌های شمارشی روز برای مواردی مانند «سه مهر» نیز پشتیبانی می‌شوند.
 JALALI_DAY_WORDS = [
     "سی و یک", "بیست و نه", "بیست و هشت", "بیست و هفت",
     "بیست و شش", "بیست و پنج", "بیست و چهار", "بیست و سه",
@@ -265,8 +302,13 @@ JALALI_DAY_WORDS = [
     "شش", "پنج", "چهار", "سه", "دو", "یک", "یه",
 ]
 
+_ALL_DAY_WORDS = sorted(
+    set(JALALI_DAY_WORDS) | set(JALALI_DAY_ORDINALS.keys()),
+    key=len,
+    reverse=True,
+)
 _DAY_WORD_PATTERN = "(?:" + "|".join(
-    re.escape(word) for word in sorted(JALALI_DAY_WORDS, key=len, reverse=True)
+    re.escape(word) for word in _ALL_DAY_WORDS
 ) + ")"
 _DAY_PATTERN = rf"(?:\d{{1,2}}|{_DAY_WORD_PATTERN})(?:\s*ام)?"
 _MONTH_PATTERN = "(?:" + "|".join(
@@ -274,34 +316,42 @@ _MONTH_PATTERN = "(?:" + "|".join(
 ) + ")"
 _YEAR_PATTERN = r"(?:13\d{2}|14\d{2})"
 
+# سال اختیاری است. اگر نوشته نشود، سال شمسی جاری در نظر گرفته می‌شود.
+# پشتیبانی:
+#   3 مهر 1405 / سه مهر 1405 / سوم مهر 1405
+#   سوم مهر / 3 مهر / روز سوم مهر
+#   مهر سوم 1405 / 1405 مهر سوم
 NAMED_JALALI_DATE_PATTERNS = [
-    # 3 شهریور 1405 / سه شهریور 1405
     re.compile(
-        rf"(?<!\w)(?P<day>{_DAY_PATTERN})\s+(?:ماه\s+)?"
-        rf"(?P<month>{_MONTH_PATTERN})(?:\s+ماه)?\s+(?P<year>{_YEAR_PATTERN})(?!\d)"
+        rf"(?<!\w)(?:روز\s+)?(?P<day>{_DAY_PATTERN})\s+"
+        rf"(?:ماه\s+)?(?P<month>{_MONTH_PATTERN})(?:\s+ماه)?"
+        rf"(?:\s+(?P<year>{_YEAR_PATTERN}))?(?!\w)"
     ),
-    # شهریور 3 1405
     re.compile(
-        rf"(?<!\w)(?P<month>{_MONTH_PATTERN})\s+(?P<day>{_DAY_PATTERN})"
-        rf"\s+(?P<year>{_YEAR_PATTERN})(?!\d)"
+        rf"(?<!\w)(?P<month>{_MONTH_PATTERN})\s+"
+        rf"(?P<day>{_DAY_PATTERN})(?:\s+(?P<year>{_YEAR_PATTERN}))?(?!\w)"
     ),
-    # 1405 شهریور 3
     re.compile(
-        rf"(?<!\d)(?P<year>{_YEAR_PATTERN})\s+(?P<month>{_MONTH_PATTERN})"
-        rf"\s+(?P<day>{_DAY_PATTERN})(?!\w)"
+        rf"(?<!\d)(?P<year>{_YEAR_PATTERN})\s+(?P<month>{_MONTH_PATTERN})\s+"
+        rf"(?P<day>{_DAY_PATTERN})(?!\w)"
     ),
 ]
 
 NUMERIC_JALALI_DATE_PATTERN = re.compile(
-    r"(?<!\d)(1[34]\d{2})\s*[/.\-]\s*(\d{1,2})\s*[/.\-]\s*(\d{1,2})(?!\d)"
+    r"(?<!\d)(1[34]\d{2})\s*[/.-]\s*(\d{1,2})\s*[/.-]\s*(\d{1,2})(?!\d)"
 )
 
 
 def _jalali_day_number(value: str):
-    value = value.strip()
+    value = normalize_text(value.strip())
     value = re.sub(r"\s*ام$", "", value)
+
     if value.isdigit():
         return int(value)
+
+    if value in JALALI_DAY_ORDINALS:
+        return JALALI_DAY_ORDINALS[value]
+
     return parse_persian_number_words(value)
 
 
@@ -336,7 +386,13 @@ def parse_jalali_date(text: str):
     if not match:
         return None
 
-    year = int(match.group("year"))
+    year_text = match.groupdict().get("year")
+    if year_text:
+        year = int(year_text)
+    else:
+        # تبدیل تاریخ امروز میلادی به سال شمسی جاری.
+        year = jdatetime.date.fromgregorian(date=date.today()).year
+
     month_name = match.group("month")
     month = JALALI_MONTHS.get(month_name)
     day = _jalali_day_number(match.group("day"))
@@ -346,28 +402,27 @@ def parse_jalali_date(text: str):
 
     try:
         return jdatetime.date(year, month, day).togregorian()
-    except ValueError:
+    except (ValueError, TypeError):
         return None
 
 
 def remove_date_expressions(text: str) -> str:
-    """حذف تاریخ از متن برای جلوگیری از اشتباه گرفتن اجزای تاریخ با مبلغ یا شرح."""
+    """حذف تاریخ از متن تا اجزای تاریخ وارد مبلغ یا شرح هزینه نشوند."""
     result = normalize_text(text)
 
-    # تاریخ‌های عددی جلالی مثل 1405/07/14
     result = NUMERIC_JALALI_DATE_PATTERN.sub(" ", result)
 
-    # تاریخ‌های متنی مثل 3 شهریور 1405 یا سه شهریور 1405
     for pattern in NAMED_JALALI_DATE_PATTERNS:
         result = pattern.sub(" ", result)
 
-    # عبارت‌های تاریخ نسبی
     relative_patterns = [
-        r"پس\s*فردا", r"پریروز", r"دیروز", r"فردا", r"امروز"
+        r"پس\s*فردا", r"پری\s*روز", r"دی\s*روز", r"فردا", r"ام\s*روز"
     ]
     for pattern in relative_patterns:
         result = re.sub(pattern, " ", result)
 
+    # تمیزکاری مواردی مانند «ماه سوم مهر» پس از حذف تاریخ.
+    result = re.sub(r"(?<!\w)ماه(?!\w)", " ", result)
     return " ".join(result.split())
 
 
@@ -818,6 +873,14 @@ if __name__ == "__main__":
         "پس فردا 300 هزار تومان سیب",
 
         "پس‌فردا 400 هزار تومان گلابی",
+
+        "سوم مهر چیپس خریدم به مبلغ 240000",
+
+        "سه مهر 1405 چیپس خریدم به مبلغ 240000",
+
+        "روز بیست و سوم مهر چیپس خریدم به مبلغ 240000",
+
+        "اول مهر خرید به مبلغ 50000",
 
         "1405/07/14 200 هزار تومان کرایه تاکسی",
 

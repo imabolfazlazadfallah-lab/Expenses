@@ -3542,6 +3542,15 @@ body.settings-modal-open {
     min-width: 0;
 }
 
+.edit-date-input-wrap {
+    margin: 0 0 2px;
+}
+
+.edit-date-input-wrap input.report-jalali-date-input {
+    text-align: right;
+    direction: ltr;
+}
+
 .report-date-input-wrap input.report-jalali-date-input {
     flex: 1 1 auto;
     width: 0;
@@ -3985,4 +3994,169 @@ html[data-theme="dark"] .report-jalali-picker-footer {
 html[data-theme="dark"] .report-jalali-picker-footer button {
     background: #303a41;
     color: #f1f3f4;
+}
+
+
+
+/* =====================================================
+   ACCOUNTS PAGE
+===================================================== */
+.accounts-page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 18px 18px;
+}
+.accounts-page-heading h1 { font-size: 22px; font-weight: 900; margin-bottom: 5px; }
+.accounts-page-heading p { color: #7e898f; font-size: 12px; line-height: 1.8; }
+.accounts-add-button { flex-shrink: 0; padding: 0 13px; min-height: 42px; font-size: 12px; }
+.accounts-overview-section { padding: 15px; }
+.accounts-total-card {
+    padding: 20px;
+    border-radius: 19px;
+    color: #fff;
+    background: linear-gradient(135deg, #24343b, #476773);
+    box-shadow: 0 10px 25px rgba(38, 50, 56, .13);
+}
+.accounts-total-label { font-size: 12px; color: #d6e1e4; margin-bottom: 10px; }
+.accounts-total-value { font-size: clamp(20px, 5.8vw, 29px); font-weight: 900; line-height: 1.7; overflow-wrap: anywhere; }
+.accounts-total-note { font-size: 10px; color: #d6e1e4; line-height: 1.8; }
+.accounts-metrics-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px; }
+.accounts-metric-card { display: grid; grid-template-columns: 30px 1fr; align-items: center; column-gap: 7px; row-gap: 5px; padding: 13px; border-radius: 15px; background: #f6f8f9; min-width: 0; }
+.accounts-metric-icon { grid-row: span 2; font-size: 22px; }
+.accounts-metric-label { color: #77838a; font-size: 10px; }
+.accounts-metric-card strong { font-size: 13px; font-weight: 900; overflow-wrap: anywhere; }
+.accounts-list-toolbar { display: flex; justify-content: flex-start; margin: -3px 0 12px; }
+.accounts-inactive-toggle { display: inline-flex; align-items: center; gap: 7px; color: #748087; font-size: 11px; cursor: pointer; }
+.accounts-inactive-toggle input { accent-color: #455a64; }
+.accounts-status { color: #7b878d; font-size: 11px; margin-bottom: 10px; min-height: 0; }
+.accounts-status.error { color: #c62828; }
+.accounts-list { display: flex; flex-direction: column; gap: 12px; }
+.account-card { border: 1px solid #e8edef; border-radius: 18px; padding: 15px; min-width: 0; background: #fff; }
+.account-card-inactive { opacity: .76; background: #f8f9fa; }
+.account-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.account-card-identity { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.account-card-icon { width: 47px; height: 47px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: #edf3f5; border-radius: 15px; font-size: 23px; }
+.account-card-names { min-width: 0; }
+.account-card-names h3 { font-size: 14px; font-weight: 900; overflow-wrap: anywhere; margin-bottom: 4px; }
+.account-card-names span { color: #818d93; font-size: 10px; }
+.account-card-menu { display: flex; align-items: center; gap: 5px; }
+.account-icon-action { width: 34px; height: 34px; border: 0; border-radius: 10px; background: #f3f6f7; cursor: pointer; }
+.account-icon-danger { color: #b85b50; }
+.account-balance-block { margin-top: 17px; padding: 13px 14px; border-radius: 13px; background: #f6f9fa; }
+.account-balance-block span { display: block; font-size: 10px; color: #7e8b90; margin-bottom: 4px; }
+.account-balance-block strong { display: block; font-size: 21px; font-weight: 900; overflow-wrap: anywhere; }
+.account-card-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 14px 1px 12px; }
+.account-card-stats div { min-width: 0; }
+.account-card-stats span { display: block; color: #879197; font-size: 9px; margin-bottom: 6px; }
+.account-card-stats strong { display: block; font-size: 10px; line-height: 1.6; font-weight: 800; overflow-wrap: anywhere; }
+.account-transactions-button { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 1px solid #e4ebee; border-radius: 12px; padding: 11px 13px; background: #fff; color: #354c55; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
+.account-transactions-button span { font-size: 18px; }
+.accounts-empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; border: 1px dashed #d5dfe3; border-radius: 18px; padding: 25px 15px; color: #69777d; }
+.accounts-empty-state strong { color: #33464e; font-size: 14px; }
+.accounts-empty-state p { font-size: 12px; line-height: 1.9; }
+.accounts-empty-icon { font-size: 36px; }
+.accounts-empty-state.compact { padding: 20px 12px; }
+.accounts-help-note { margin: 0 16px 16px; padding: 13px 15px; background: #edf3f5; border-radius: 14px; color: #63737a; font-size: 10px; line-height: 2; }
+.account-form-help { color: #859198; font-size: 10px; line-height: 1.9; margin-top: 2px; }
+.account-select-input { width: 100%; min-height: 46px; border: 1px solid #dce3e6; border-radius: 12px; padding: 0 12px; color: #263238; background: #fff; font-family: inherit; font-size: 13px; outline: none; }
+.confirmation-account-field { margin-top: 18px; padding: 14px; border-radius: 15px; background: #f6f8f9; text-align: right; }
+.confirmation-account-field label { display: block; font-size: 12px; font-weight: 800; margin-bottom: 8px; }
+.confirmation-account-hint { color: #74828a; font-size: 10px; line-height: 1.8; margin-top: 6px; }
+.text-action-button { background: transparent; border: 0; color: #455f6a; font-family: inherit; font-size: 11px; padding: 8px 0 0; cursor: pointer; font-weight: 800; }
+.account-transactions-modal-card { max-width: 500px; }
+.account-transactions-summary { color: #77858c; font-size: 11px; margin: -9px 0 14px; }
+.account-transactions-list { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.account-transaction-row { display: flex; align-items: center; gap: 10px; padding: 11px; border-radius: 13px; background: #f7f9fa; }
+.account-transaction-icon { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0; color: #ae554c; background: #fbecea; font-size: 18px; }
+.account-transaction-main { flex: 1; min-width: 0; }
+.account-transaction-main strong { display: block; font-size: 12px; overflow-wrap: anywhere; }
+.account-transaction-main span { display: block; color: #829097; font-size: 10px; margin-top: 4px; }
+.account-transaction-amount { color: #b84e45; font-size: 11px; font-weight: 900; white-space: nowrap; }
+
+html[data-theme="dark"] .accounts-page-heading p,
+html[data-theme="dark"] .accounts-metric-label,
+html[data-theme="dark"] .account-card-names span,
+html[data-theme="dark"] .account-balance-block span,
+html[data-theme="dark"] .account-card-stats span,
+html[data-theme="dark"] .accounts-status,
+html[data-theme="dark"] .accounts-inactive-toggle,
+html[data-theme="dark"] .account-form-help,
+html[data-theme="dark"] .confirmation-account-hint,
+html[data-theme="dark"] .account-transactions-summary,
+html[data-theme="dark"] .account-transaction-main span { color: #aab2b8; }
+html[data-theme="dark"] .account-card,
+html[data-theme="dark"] .accounts-metric-card,
+html[data-theme="dark"] .account-card-inactive,
+html[data-theme="dark"] .account-balance-block,
+html[data-theme="dark"] .account-transactions-button,
+html[data-theme="dark"] .account-transaction-row,
+html[data-theme="dark"] .confirmation-account-field,
+html[data-theme="dark"] .account-select-input { background: #20262b; border-color: #333b41; color: #e8eaed; }
+html[data-theme="dark"] .account-card-names h3,
+html[data-theme="dark"] .accounts-empty-state strong { color: #f1f3f4; }
+html[data-theme="dark"] .account-card-icon,
+html[data-theme="dark"] .account-icon-action { background: #303940; }
+html[data-theme="dark"] .accounts-empty-state { border-color: #3b444b; color: #aab2b8; }
+html[data-theme="dark"] .accounts-help-note { background: #202a30; color: #aab2b8; }
+html[data-theme="dark"] .text-action-button { color: #a6c1cb; }
+
+@media (max-width: 380px) {
+    .accounts-page-heading { padding-left: 13px; padding-right: 13px; gap: 7px; }
+    .accounts-page-heading h1 { font-size: 19px; }
+    .accounts-add-button { font-size: 10px; padding: 0 9px; }
+    .account-card { padding: 12px; }
+    .account-card-stats { gap: 4px; }
+    .account-card-stats strong { font-size: 9px; }
+    .account-balance-block strong { font-size: 18px; }
+}
+
+/* Account credit / income entry and transaction colors */
+.accounts-metrics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.account-credit-button {
+    display: flex; align-items: center; justify-content: center; width: 100%;
+    margin: 0 0 8px; padding: 11px 12px; border: 1px solid #d9e9e2;
+    border-radius: 12px; background: #f0f8f4; color: #267354;
+    font: inherit; font-size: 11px; font-weight: 800; cursor: pointer;
+}
+.account-credit-button:hover { background: #e6f4ed; }
+.account-transaction-icon.incoming { color: #267354; background: #e4f4eb; }
+.account-transaction-icon.outgoing { color: #ae554c; background: #fbecea; }
+.account-transaction-amount.incoming { color: #267354; }
+.account-transaction-amount.outgoing { color: #b84e45; }
+.account-credit-modal-card { max-width: 440px; }
+#accountCreditDateJalali { direction: ltr; text-align: left; }
+html[data-theme="dark"] .account-credit-button { color: #b4e5ce; background: #233b31; border-color: #355b48; }
+html[data-theme="dark"] .account-credit-button:hover { background: #294739; }
+html[data-theme="dark"] .account-transaction-icon.incoming { color: #b4e5ce; background: #233b31; }
+html[data-theme="dark"] .account-transaction-icon.outgoing { color: #ffc6bf; background: #452b2b; }
+html[data-theme="dark"] .account-transaction-amount.incoming { color: #91d8b3; }
+html[data-theme="dark"] .account-transaction-amount.outgoing { color: #ffaaa1; }
+@media (max-width: 390px) {
+    .accounts-metrics-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .accounts-metric-card:last-child { grid-column: 1 / -1; }
+}
+
+.account-balance-block.account-balance-negative { background: #fff0ee; border: 1px solid #f4d2cd; }
+.account-balance-block.account-balance-negative strong { color: #b3261e; }
+@media (max-width: 390px) {
+    .account-card-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+html[data-theme="dark"] .account-balance-block.account-balance-negative { background: #422b2a; border-color: #64403e; }
+html[data-theme="dark"] .account-balance-block.account-balance-negative strong { color: #ffb4ab; }
+
+
+/* Account-to-account transfer UI */
+.accounts-page-actions { display: flex; align-items: center; justify-content: flex-end; gap: 7px; flex-shrink: 0; }
+.accounts-transfer-button { min-height: 42px; padding: 0 11px; font-size: 11px; white-space: nowrap; border-color: #dce5e8; }
+.account-transfer-modal-card { max-width: 460px; }
+.account-transfer-modal-card #accountTransferDateJalali { direction: ltr; text-align: left; }
+#accountTransferBalanceHint.error { color: #b42318; }
+html[data-theme="dark"] .accounts-transfer-button { background: #20262b; color: #e8eaed; border-color: #3b444b; }
+html[data-theme="dark"] #accountTransferBalanceHint.error { color: #ffaaa1; }
+@media (max-width: 430px) {
+    .accounts-page-heading { align-items: flex-start; flex-wrap: wrap; }
+    .accounts-page-actions { width: 100%; }
+    .accounts-page-actions > button { flex: 1; }
 }

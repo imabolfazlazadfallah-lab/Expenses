@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.database import get_connection
 from app.services.expense_parser import parse_expense_text
 from app.services.expense_validator import validate_expense
+from app.services.account_balance import get_account_current_balance
 
 
 router = APIRouter(
@@ -29,6 +30,8 @@ class ExpenseEdit(BaseModel):
 
     category_id: int | None = None
 
+    account_id: int | None = None
+
     expense_date: date
 
 
@@ -45,6 +48,8 @@ class ExpenseTextRequest(BaseModel):
 class ExpenseConfirmRequest(BaseModel):
 
     confirmation_id: str
+
+    account_id: int | None = None
 
 
 # ============================================================
@@ -798,6 +803,7 @@ def confirm_expense(
             WHERE CONFIRMATION_ID =
                 :confirmation_id
               AND USER_ID = :user_id
+            FOR UPDATE
             """,
             {
 
@@ -820,7 +826,48 @@ def confirm_expense(
                 "message":
                     "اطلاعات تأیید هزینه پیدا نشد."
             }
-        amount = row[2]
+        if data.account_id is None:
+            return {
+                "status": "error",
+                "message": "لطفاً حساب پرداخت‌کننده را انتخاب کنید."
+            }
+
+        # Lock the account row so two concurrent expense confirmations cannot
+        # spend the same remaining balance.
+        cursor.execute(
+            """
+            SELECT ACCOUNT_ID, ACCOUNT_NAME
+            FROM EXP_ACCOUNTS
+            WHERE ACCOUNT_ID = :account_id
+              AND USER_ID = :user_id
+              AND IS_ACTIVE = 1
+            FOR UPDATE
+            """,
+            {"account_id": data.account_id, "user_id": 1}
+        )
+        account_row = cursor.fetchone()
+        if not account_row:
+            connection.rollback()
+            return {
+                "status": "error",
+                "message": "حساب انتخاب‌شده معتبر یا فعال نیست. لطفاً حساب دیگری انتخاب کنید."
+            }
+
+        amount = int(row[2] or 0)
+        current_balance = get_account_current_balance(cursor, data.account_id, 1)
+        if amount > current_balance:
+            connection.rollback()
+            return {
+                "status": "error",
+                "message": (
+                    f"موجودی حساب «{account_row[1]}» کافی نیست. "
+                    f"موجودی فعلی: {current_balance:,} تومان؛ "
+                    f"مبلغ هزینه: {amount:,} تومان. ابتدا افزایش موجودی ثبت کنید یا حساب دیگری انتخاب کنید."
+                ),
+                "current_balance": current_balance,
+                "required_amount": amount,
+                "account_id": data.account_id,
+            }
 
         description = row[3]
 
@@ -901,6 +948,7 @@ def confirm_expense(
             (
                 USER_ID,
                 CATEGORY_ID,
+                ACCOUNT_ID,
                 AMOUNT,
                 DESCRIPTION,
                 EXPENSE_DATE,
@@ -912,6 +960,7 @@ def confirm_expense(
             (
                 :user_id,
                 :category_id,
+                :account_id,
                 :amount,
                 :description,
                 :expense_date,
@@ -929,6 +978,9 @@ def confirm_expense(
 
                 "category_id":
                     category_id,
+
+                "account_id":
+                    data.account_id,
 
                 "amount":
                     amount,
@@ -1091,35 +1143,26 @@ def edit_expense(
 
         cursor.execute(
             """
-            SELECT
-                EXPENSE_ID
+            SELECT EXPENSE_ID, ACCOUNT_ID, AMOUNT
             FROM EXP_EXPENSES
-            WHERE EXPENSE_ID =
-                :expense_id
-              AND USER_ID =
-                :user_id
+            WHERE EXPENSE_ID = :expense_id
+              AND USER_ID = :user_id
+            FOR UPDATE
             """,
-            {
-
-                "expense_id":
-                    data.expense_id,
-
-                "user_id":
-                    1
-            }
+            {"expense_id": data.expense_id, "user_id": 1}
         )
 
         expense = cursor.fetchone()
 
         if not expense:
-
             return {
-
                 "status": "error",
-
-                "message":
-                    "هزینه موردنظر پیدا نشد."
+                "message": "هزینه موردنظر پیدا نشد."
             }
+
+        old_account_id = int(expense[1]) if expense[1] is not None else None
+        old_amount = int(expense[2] or 0)
+        target_account_id = data.account_id if data.account_id is not None else old_account_id
 
         # ----------------------------------------------------
         # AMOUNT
@@ -1200,6 +1243,54 @@ def edit_expense(
                 }
 
         # ----------------------------------------------------
+        # ACCOUNT AND OVERDRAFT VALIDATION
+        # ----------------------------------------------------
+
+        if target_account_id is not None:
+            # Lock the destination account. If the user explicitly selected an
+            # account, it must be active; legacy expenses can still be edited
+            # without changing an already-assigned inactive account.
+            account_sql = "SELECT ACCOUNT_ID FROM EXP_ACCOUNTS WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id"
+            account_params = {"account_id": target_account_id, "user_id": 1}
+            if data.account_id is not None:
+                account_sql += " AND IS_ACTIVE = 1"
+            account_sql += " FOR UPDATE"
+            cursor.execute(account_sql, account_params)
+            if not cursor.fetchone():
+                connection.rollback()
+                return {
+                    "status": "error",
+                    "message": "حساب انتخاب‌شده معتبر یا فعال نیست."
+                }
+
+            # Only validate when the account or amount changes. Description,
+            # category and date corrections must remain possible even if an
+            # older account is already overdrawn.
+            balance_impact_changed = (
+                target_account_id != old_account_id or data.amount != old_amount
+            )
+            if balance_impact_changed:
+                available_before_this_expense = get_account_current_balance(
+                    cursor,
+                    target_account_id,
+                    1,
+                    exclude_expense_id=(data.expense_id if target_account_id == old_account_id else None),
+                )
+                if data.amount > available_before_this_expense:
+                    connection.rollback()
+                    return {
+                        "status": "error",
+                        "message": (
+                            f"موجودی حساب برای این تغییر کافی نیست. "
+                            f"موجودی قابل استفاده: {available_before_this_expense:,} تومان. "
+                            "ابتدا افزایش موجودی ثبت کنید یا حساب دیگری انتخاب کنید."
+                        ),
+                        "current_balance_before_expense": available_before_this_expense,
+                        "required_amount": data.amount,
+                        "account_id": target_account_id,
+                    }
+
+        # ----------------------------------------------------
         # UPDATE
         # ----------------------------------------------------
 
@@ -1215,6 +1306,9 @@ def edit_expense(
 
                 CATEGORY_ID =
                     :category_id,
+
+                ACCOUNT_ID =
+                    COALESCE(:account_id, ACCOUNT_ID),
 
                 EXPENSE_DATE =
                     :expense_date,
@@ -1238,6 +1332,9 @@ def edit_expense(
 
                 "category_id":
                     data.category_id,
+
+                "account_id":
+                    data.account_id,
 
                 "expense_date":
                     data.expense_date,
