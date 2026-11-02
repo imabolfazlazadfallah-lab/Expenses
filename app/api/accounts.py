@@ -1,17 +1,16 @@
 from datetime import date, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from app.database import get_connection
+from app.api.auth import get_session_user_id, require_active_user
 from app.services.account_balance import get_account_current_balance
+from app.services.app_clock import app_today
 
-router = APIRouter(prefix="/api/accounts", tags=["Accounts"])
-
-# Keep aligned with the current application until authentication is connected.
-DEFAULT_USER_ID = 1
-
+router = APIRouter(prefix="/api/accounts", tags=["Accounts"], dependencies=[Depends(require_active_user)])
+#HI From Bahador
 ACCOUNT_TYPES = {
     "CASH": "پول نقد",
     "BANK": "حساب بانکی",
@@ -49,7 +48,7 @@ class AccountCreditCreate(BaseModel):
     amount: int
     credit_type: Literal["INCOME", "DEPOSIT"] = "DEPOSIT"
     description: str = ""
-    credit_date: date = Field(default_factory=date.today)
+    credit_date: date = Field(default_factory=app_today)
 
 
 class AccountTransferCreate(BaseModel):
@@ -57,10 +56,10 @@ class AccountTransferCreate(BaseModel):
     to_account_id: int
     amount: int
     description: str = "انتقال وجه"
-    transfer_date: date = Field(default_factory=date.today)
+    transfer_date: date = Field(default_factory=app_today)
 
 
-def _account_exists(cursor, account_id: int, user_id: int = DEFAULT_USER_ID, active_only: bool = False) -> bool:
+def _account_exists(cursor, account_id: int, user_id: int, active_only: bool = False) -> bool:
     sql = "SELECT 1 FROM EXP_ACCOUNTS WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id"
     if active_only:
         sql += " AND IS_ACTIVE = 1"
@@ -148,7 +147,8 @@ _ACCOUNT_AGGREGATES = """
 
 
 @router.get("/summary")
-def get_accounts_summary():
+def get_accounts_summary(request: Request):
+    user_id = get_session_user_id(request)
     connection = get_connection()
     try:
         cursor = connection.cursor()
@@ -158,11 +158,11 @@ def get_accounts_summary():
             "NVL(SUM(CURRENT_BALANCE), 0) FROM (" + _ACCOUNT_AGGREGATES +
             " WHERE a.USER_ID = :user_id AND a.IS_ACTIVE = 1)",
             {
-                "user_id": DEFAULT_USER_ID,
-                "expense_user_id": DEFAULT_USER_ID,
-                "credit_user_id": DEFAULT_USER_ID,
-                "transfer_in_user_id": DEFAULT_USER_ID,
-                "transfer_out_user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
+                "expense_user_id": user_id,
+                "credit_user_id": user_id,
+                "transfer_in_user_id": user_id,
+                "transfer_out_user_id": user_id,
             },
         )
         row = cursor.fetchone()
@@ -183,7 +183,8 @@ def get_accounts_summary():
 
 
 @router.get("/")
-def get_accounts(include_inactive: bool = Query(False)):
+def get_accounts(request: Request, include_inactive: bool = Query(False)):
+    user_id = get_session_user_id(request)
     connection = get_connection()
     try:
         cursor = connection.cursor()
@@ -194,11 +195,11 @@ def get_accounts(include_inactive: bool = Query(False)):
             ORDER BY a.IS_ACTIVE DESC, a.CREATED_AT DESC, a.ACCOUNT_ID DESC
             """,
             {
-                "user_id": DEFAULT_USER_ID,
-                "expense_user_id": DEFAULT_USER_ID,
-                "credit_user_id": DEFAULT_USER_ID,
-                "transfer_in_user_id": DEFAULT_USER_ID,
-                "transfer_out_user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
+                "expense_user_id": user_id,
+                "credit_user_id": user_id,
+                "transfer_in_user_id": user_id,
+                "transfer_out_user_id": user_id,
                 "include_inactive": 1 if include_inactive else 0,
             },
         )
@@ -211,7 +212,8 @@ def get_accounts(include_inactive: bool = Query(False)):
 
 
 @router.post("/")
-def create_account(data: AccountCreate):
+def create_account(request: Request, data: AccountCreate):
+    user_id = get_session_user_id(request)
     account_name = (data.account_name or "").strip()
     account_type = normalize_account_type(data.account_type)
     if not account_name:
@@ -231,7 +233,7 @@ def create_account(data: AccountCreate):
                WHERE USER_ID = :user_id
                  AND UPPER(TRIM(ACCOUNT_NAME)) = UPPER(:account_name)
                  AND IS_ACTIVE = 1""",
-            {"user_id": DEFAULT_USER_ID, "account_name": account_name},
+            {"user_id": user_id, "account_name": account_name},
         )
         if int(cursor.fetchone()[0] or 0) > 0:
             return {"status": "error", "message": "یک حساب فعال با این نام وجود دارد."}
@@ -243,7 +245,7 @@ def create_account(data: AccountCreate):
                VALUES (:user_id, :account_name, :account_type, :initial_balance, 1)
                RETURNING ACCOUNT_ID INTO :account_id""",
             {
-                "user_id": DEFAULT_USER_ID, "account_name": account_name,
+                "user_id": user_id, "account_name": account_name,
                 "account_type": account_type, "initial_balance": data.initial_balance,
                 "account_id": account_id_var,
             },
@@ -260,7 +262,8 @@ def create_account(data: AccountCreate):
 
 
 @router.put("/{account_id}")
-def update_account(account_id: int, data: AccountUpdate):
+def update_account(request: Request, account_id: int, data: AccountUpdate):
+    user_id = get_session_user_id(request)
     account_name = (data.account_name or "").strip()
     account_type = normalize_account_type(data.account_type)
     if not account_name:
@@ -277,7 +280,7 @@ def update_account(account_id: int, data: AccountUpdate):
         cursor = connection.cursor()
         cursor.execute(
             "SELECT ACCOUNT_ID, NVL(INITIAL_BALANCE, 0) FROM EXP_ACCOUNTS WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id FOR UPDATE",
-            {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+            {"account_id": account_id, "user_id": user_id},
         )
         locked_account = cursor.fetchone()
         if not locked_account:
@@ -288,13 +291,13 @@ def update_account(account_id: int, data: AccountUpdate):
             """SELECT COUNT(*) FROM EXP_ACCOUNTS
                WHERE USER_ID = :user_id AND ACCOUNT_ID <> :account_id
                  AND UPPER(TRIM(ACCOUNT_NAME)) = UPPER(:account_name) AND IS_ACTIVE = 1""",
-            {"user_id": DEFAULT_USER_ID, "account_id": account_id, "account_name": account_name},
+            {"user_id": user_id, "account_id": account_id, "account_name": account_name},
         )
         if int(cursor.fetchone()[0] or 0) > 0:
             return {"status": "error", "message": "حساب فعال دیگری با این نام وجود دارد."}
 
         # A changed opening balance must include credits, expenses, and transfers.
-        current_balance = get_account_current_balance(cursor, account_id, DEFAULT_USER_ID)
+        current_balance = get_account_current_balance(cursor, account_id, user_id)
         resulting_balance = current_balance - old_initial_balance + int(data.initial_balance)
         # Do not block harmless edits to an account that was already negative.
         # Reject only a change that would newly create or worsen a negative balance.
@@ -311,7 +314,7 @@ def update_account(account_id: int, data: AccountUpdate):
             {
                 "account_name": account_name, "account_type": account_type,
                 "initial_balance": data.initial_balance, "account_id": account_id,
-                "user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
             },
         )
         connection.commit()
@@ -324,7 +327,8 @@ def update_account(account_id: int, data: AccountUpdate):
 
 
 @router.post("/{account_id}/credits")
-def create_account_credit(account_id: int, data: AccountCreditCreate):
+def create_account_credit(request: Request, account_id: int, data: AccountCreditCreate):
+    user_id = get_session_user_id(request)
     if data.amount <= 0:
         return {"status": "error", "message": "مبلغ باید بیشتر از صفر باشد."}
     if data.amount > 999_999_999_999_999_999:
@@ -334,7 +338,7 @@ def create_account_credit(account_id: int, data: AccountCreditCreate):
         return {"status": "error", "message": "شرح درآمد یا افزایش موجودی را وارد کنید."}
     if len(description) > 500:
         return {"status": "error", "message": "شرح نباید بیشتر از ۵۰۰ کاراکتر باشد."}
-    if data.credit_date > date.today():
+    if data.credit_date > app_today():
         return {"status": "error", "message": "تاریخ تراکنش نمی‌تواند در آینده باشد."}
 
     connection = get_connection()
@@ -344,7 +348,7 @@ def create_account_credit(account_id: int, data: AccountCreditCreate):
             """SELECT ACCOUNT_NAME FROM EXP_ACCOUNTS
                WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id AND IS_ACTIVE = 1
                FOR UPDATE""",
-            {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+            {"account_id": account_id, "user_id": user_id},
         )
         account_row = cursor.fetchone()
         if not account_row:
@@ -357,7 +361,7 @@ def create_account_credit(account_id: int, data: AccountCreditCreate):
                VALUES (:user_id, :account_id, :credit_type, :amount, :description, :credit_date, SYSTIMESTAMP)
                RETURNING CREDIT_ID INTO :credit_id""",
             {
-                "user_id": DEFAULT_USER_ID, "account_id": account_id,
+                "user_id": user_id, "account_id": account_id,
                 "credit_type": data.credit_type, "amount": data.amount,
                 "description": description, "credit_date": data.credit_date,
                 "credit_id": credit_id_var,
@@ -365,7 +369,7 @@ def create_account_credit(account_id: int, data: AccountCreditCreate):
         )
         raw_id = credit_id_var.getvalue()
         credit_id = int(raw_id[0] if isinstance(raw_id, list) else raw_id)
-        new_balance = get_account_current_balance(cursor, account_id, DEFAULT_USER_ID)
+        new_balance = get_account_current_balance(cursor, account_id, user_id)
         connection.commit()
         label = CREDIT_TYPES[data.credit_type]
         return {
@@ -381,7 +385,8 @@ def create_account_credit(account_id: int, data: AccountCreditCreate):
 
 
 @router.post("/transfers")
-def create_account_transfer(data: AccountTransferCreate):
+def create_account_transfer(request: Request, data: AccountTransferCreate):
+    user_id = get_session_user_id(request)
     """Post a transfer atomically; it is not an income or expense."""
     source_id = int(data.from_account_id)
     destination_id = int(data.to_account_id)
@@ -396,7 +401,7 @@ def create_account_transfer(data: AccountTransferCreate):
         return {"status": "error", "message": "مبلغ واردشده بیش از حد مجاز است."}
     if len(description) > 500:
         return {"status": "error", "message": "شرح انتقال نباید بیشتر از ۵۰۰ کاراکتر باشد."}
-    if data.transfer_date > date.today():
+    if data.transfer_date > app_today():
         return {"status": "error", "message": "تاریخ انتقال نمی‌تواند در آینده باشد."}
 
     connection = get_connection()
@@ -412,7 +417,7 @@ def create_account_transfer(data: AccountTransferCreate):
                      AND USER_ID = :user_id
                      AND IS_ACTIVE = 1
                    FOR UPDATE""",
-                {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+                {"account_id": account_id, "user_id": user_id},
             )
             row = cursor.fetchone()
             if not row:
@@ -420,7 +425,7 @@ def create_account_transfer(data: AccountTransferCreate):
                 return {"status": "error", "message": "حساب مبدأ یا مقصد فعال پیدا نشد."}
             locked_accounts[int(row[0])] = row[1]
 
-        source_balance = get_account_current_balance(cursor, source_id, DEFAULT_USER_ID)
+        source_balance = get_account_current_balance(cursor, source_id, user_id)
         if source_balance < amount:
             connection.rollback()
             return {
@@ -437,7 +442,7 @@ def create_account_transfer(data: AccountTransferCreate):
                    (:user_id, :from_account_id, :to_account_id, :amount, :description, :transfer_date, SYSTIMESTAMP)
                RETURNING TRANSFER_ID INTO :transfer_id""",
             {
-                "user_id": DEFAULT_USER_ID,
+                "user_id": user_id,
                 "from_account_id": source_id,
                 "to_account_id": destination_id,
                 "amount": amount,
@@ -448,8 +453,8 @@ def create_account_transfer(data: AccountTransferCreate):
         )
         raw_id = transfer_id_var.getvalue()
         transfer_id = int(raw_id[0] if isinstance(raw_id, list) else raw_id)
-        source_after = get_account_current_balance(cursor, source_id, DEFAULT_USER_ID)
-        destination_after = get_account_current_balance(cursor, destination_id, DEFAULT_USER_ID)
+        source_after = get_account_current_balance(cursor, source_id, user_id)
+        destination_after = get_account_current_balance(cursor, destination_id, user_id)
         connection.commit()
         return {
             "status": "success",
@@ -468,15 +473,16 @@ def create_account_transfer(data: AccountTransferCreate):
         connection.close()
 
 @router.post("/{account_id}/deactivate")
-def deactivate_account(account_id: int):
+def deactivate_account(request: Request, account_id: int):
+    user_id = get_session_user_id(request)
     connection = get_connection()
     try:
         cursor = connection.cursor()
-        if not _account_exists(cursor, account_id, active_only=True):
+        if not _account_exists(cursor, account_id, user_id, active_only=True):
             return {"status": "error", "message": "حساب فعال موردنظر پیدا نشد."}
         cursor.execute(
             "UPDATE EXP_ACCOUNTS SET IS_ACTIVE = 0 WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id",
-            {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+            {"account_id": account_id, "user_id": user_id},
         )
         connection.commit()
         return {"status": "success", "message": "حساب غیرفعال شد. سوابق تراکنش‌ها حفظ می‌شوند."}
@@ -488,15 +494,16 @@ def deactivate_account(account_id: int):
 
 
 @router.post("/{account_id}/activate")
-def activate_account(account_id: int):
+def activate_account(request: Request, account_id: int):
+    user_id = get_session_user_id(request)
     connection = get_connection()
     try:
         cursor = connection.cursor()
-        if not _account_exists(cursor, account_id, active_only=False):
+        if not _account_exists(cursor, account_id, user_id, active_only=False):
             return {"status": "error", "message": "حساب موردنظر پیدا نشد."}
         cursor.execute(
             "UPDATE EXP_ACCOUNTS SET IS_ACTIVE = 1 WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id",
-            {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+            {"account_id": account_id, "user_id": user_id},
         )
         connection.commit()
         return {"status": "success", "message": "حساب دوباره فعال شد."}
@@ -508,13 +515,14 @@ def activate_account(account_id: int):
 
 
 @router.get("/{account_id}/transactions")
-def get_account_transactions(account_id: int, limit: int = Query(50, ge=1, le=200)):
+def get_account_transactions(request: Request, account_id: int, limit: int = Query(50, ge=1, le=200)):
+    user_id = get_session_user_id(request)
     connection = get_connection()
     try:
         cursor = connection.cursor()
         cursor.execute(
             "SELECT ACCOUNT_NAME FROM EXP_ACCOUNTS WHERE ACCOUNT_ID = :account_id AND USER_ID = :user_id",
-            {"account_id": account_id, "user_id": DEFAULT_USER_ID},
+            {"account_id": account_id, "user_id": user_id},
         )
         account_row = cursor.fetchone()
         if not account_row:
@@ -555,10 +563,10 @@ def get_account_transactions(account_id: int, limit: int = Query(50, ge=1, le=20
                    ) ORDER BY TRANSACTION_DATE DESC, CREATED_AT DESC, TRANSACTION_ID DESC
                ) WHERE ROWNUM <= :max_rows""",
             {
-                "expense_user_id": DEFAULT_USER_ID, "expense_account_id": account_id,
-                "credit_user_id": DEFAULT_USER_ID, "credit_account_id": account_id,
-                "transfer_out_user_id": DEFAULT_USER_ID, "transfer_out_account_id": account_id,
-                "transfer_in_user_id": DEFAULT_USER_ID, "transfer_in_account_id": account_id,
+                "expense_user_id": user_id, "expense_account_id": account_id,
+                "credit_user_id": user_id, "credit_account_id": account_id,
+                "transfer_out_user_id": user_id, "transfer_out_account_id": account_id,
+                "transfer_in_user_id": user_id, "transfer_in_account_id": account_id,
                 "max_rows": limit,
             },
         )

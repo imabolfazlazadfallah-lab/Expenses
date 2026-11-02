@@ -1,0 +1,6 @@
+fastapi
+oracledb
+jdatetime
+itsdangerous
+tzdata>=2025.2
+openpyxl>=3.1.5,<4

@@ -3,6 +3,10 @@
 ===================================================== */
 
 let currentConfirmationId = null;
+let currentAuthUser = null;
+let serverTrialStatus = null;
+let pushDailyReminderActive = false;
+let appServiceWorkerRegistration = null;
 let currentConfirmationData = null;
 let currentAccountEditId = null;
 let currentAccountCreditId = null;
@@ -25,6 +29,9 @@ let currentReportExpenses = [];
 let speechRecognition = null;
 let isListening = false;
 let toastTimer = null;
+
+// Canonical business date returned by FastAPI (Asia/Tehran).
+let appTodayISO = null;
 let voiceSupported = false;
 
 
@@ -34,10 +41,8 @@ let voiceSupported = false;
 
 const TRIAL_DAYS = 7;
 
-const TRIAL_STORAGE_KEY =
-    "expense_app_trial_start";
-
-const MONTHLY_LICENSE_PRICE = 50000;
+let MONTHLY_LICENSE_PRICE = 50000;
+let serverSubscriptionStatus = { active: false, activeUntil: null };
 
 
 /* =====================================================
@@ -59,7 +64,10 @@ const SETTINGS_KEYS = {
         "expense_app_voice_enabled",
 
     THEME:
-        "expense_app_theme"
+        "expense_app_theme",
+
+    DAILY_REMINDER_TIME:
+        "expense_app_daily_reminder_time"
 };
 
 
@@ -526,73 +534,51 @@ function showToast(message) {
    TODAY GREGORIAN
 ===================================================== */
 
+async function syncApplicationDate() {
+    try {
+        const response = await fetch("/api/expenses/clock/today", { cache: "no-store" });
+        if (!response.ok) throw new Error(`Clock API HTTP ${response.status}`);
+        const data = await response.json();
+        if (data?.status === "success" && /^\d{4}-\d{2}-\d{2}$/.test(data.today || "")) {
+            appTodayISO = data.today;
+            return appTodayISO;
+        }
+    } catch (error) {
+        console.warn("Could not sync application date; using Asia/Tehran fallback.", error);
+    }
+    return getTodayGregorian();
+}
+
 function getTodayGregorian() {
+    if (appTodayISO && /^\d{4}-\d{2}-\d{2}$/.test(appTodayISO)) {
+        return appTodayISO;
+    }
 
-    const now =
-        new Date();
+    // Fallback aligns with backend even if the browser computer has another timezone.
+    try {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: "Asia/Tehran",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit"
+        }).formatToParts(new Date());
+        const values = {};
+        for (const part of parts) {
+            if (["year", "month", "day"].includes(part.type)) values[part.type] = part.value;
+        }
+        if (values.year && values.month && values.day) {
+            return `${values.year}-${values.month}-${values.day}`;
+        }
+    } catch (error) {
+        console.warn("Asia/Tehran date is unavailable; using browser local date.", error);
+    }
 
-
-    const year =
-        now.getFullYear();
-
-
-    const month =
-        String(
-            now.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
-
-
-    const day =
-        String(
-            now.getDate()
-        ).padStart(
-            2,
-            "0"
-        );
-
-
-    return (
-        `${year}-${month}-${day}`
-    );
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
-
-
-/* =====================================================
-   MONTH START
-===================================================== */
-
 function getMonthStartGregorian() {
-
-    const now =
-        new Date();
-
-
-    const year =
-        now.getFullYear();
-
-
-    const month =
-        String(
-            now.getMonth() + 1
-        ).padStart(
-            2,
-            "0"
-        );
-
-
-    return (
-        `${year}-${month}-01`
-    );
+    return `${getTodayGregorian().slice(0, 7)}-01`;
 }
-
-
-/* =====================================================
-   NORMALIZE DATE INPUT
-===================================================== */
-
 function normalizeDateInput(value) {
 
     if (!value) {
@@ -624,43 +610,22 @@ function normalizeDateInput(value) {
 ===================================================== */
 
 function toPersianDate(dateString) {
-
-    if (!dateString) {
-        return "";
+    if (!dateString) return "";
+    let date;
+    if (dateString instanceof Date) {
+        date = new Date(dateString.getFullYear(), dateString.getMonth(), dateString.getDate(), 12, 0, 0, 0);
+    } else {
+        const text = String(dateString).slice(0, 10);
+        const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        date = match
+            ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0, 0)
+            : new Date(dateString);
     }
-
-
-    const date =
-        new Date(dateString);
-
-
-    if (
-        Number.isNaN(
-            date.getTime()
-        )
-    ) {
-
-        return dateString;
-    }
-
-
-    return new Intl.DateTimeFormat(
-        "fa-IR-u-ca-persian",
-        {
-            year:
-                "numeric",
-
-            month:
-                "2-digit",
-
-            day:
-                "2-digit"
-        }
-    ).format(
-        date
-    );
+    if (Number.isNaN(date.getTime())) return String(dateString);
+    return new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        year: "numeric", month: "2-digit", day: "2-digit"
+    }).format(date);
 }
-
 
 /* =====================================================
    THEME
@@ -913,144 +878,99 @@ function initSystemThemeListener() {
 ===================================================== */
 
 function getTrialStatus() {
-
-    const now =
-        Date.now();
-
-
-    let trialStart =
-        Number(
-            localStorage.getItem(
-                TRIAL_STORAGE_KEY
-            )
-        );
-
-
-    if (
-        !Number.isFinite(
-            trialStart
-        ) ||
-        trialStart <= 0
-    ) {
-
-        trialStart =
-            now;
-
-
-        localStorage.setItem(
-            TRIAL_STORAGE_KEY,
-            String(
-                trialStart
-            )
-        );
+    // Trial is authoritative in Oracle; localStorage must not reset it.
+    if (!serverTrialStatus || !serverTrialStatus.status) {
+        return { status: "expired", remainingDays: 0, trialStart: null, trialEnd: null };
     }
-
-
-    const trialDuration =
-        TRIAL_DAYS *
-        24 *
-        60 *
-        60 *
-        1000;
-
-
-    const trialEnd =
-        trialStart +
-        trialDuration;
-
-
-    if (
-        now >=
-        trialEnd
-    ) {
-
-        return {
-
-            status:
-                "expired",
-
-            remainingDays:
-                0,
-
-            trialStart:
-                trialStart,
-
-            trialEnd:
-                trialEnd
-        };
-    }
-
-
-    const remainingDays =
-        Math.max(
-            1,
-            Math.ceil(
-                (
-                    trialEnd -
-                    now
-                ) /
-                (
-                    24 *
-                    60 *
-                    60 *
-                    1000
-                )
-            )
-        );
-
-
-    if (
-        remainingDays <= 2
-    ) {
-
-        return {
-
-            status:
-                "warning",
-
-            remainingDays:
-                remainingDays,
-
-            trialStart:
-                trialStart,
-
-            trialEnd:
-                trialEnd
-        };
-    }
-
-
     return {
-
-        status:
-            "trial",
-
-        remainingDays:
-            remainingDays,
-
-        trialStart:
-            trialStart,
-
-        trialEnd:
-            trialEnd
+        status: serverTrialStatus.status,
+        remainingDays: Math.max(0, Number(serverTrialStatus.remainingDays || 0)),
+        trialStart: serverTrialStatus.createdAt || null,
+        trialEnd: serverTrialStatus.trialEnd || null
     };
 }
-
 
 /* =====================================================
    PAID SUBSCRIPTION
 ===================================================== */
 
 function isSubscriptionActive() {
+    // Oracle is authoritative; the browser never grants paid access locally.
+    return Boolean(serverSubscriptionStatus && serverSubscriptionStatus.active);
+}
 
-    /*
-     * فعلاً پرداخت واقعی نداریم.
-     *
-     * بعداً وضعیت License از Backend/Oracle
-     * خوانده می‌شود.
-     */
+async function loadSubscriptionStatus() {
+    const response = await fetch("/api/payments/status", {
+        credentials: "same-origin",
+        cache: "no-store"
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.status !== "success") {
+        throw new Error(data.detail || "وضعیت اشتراک دریافت نشد.");
+    }
+    serverSubscriptionStatus = data.subscription || { active: false, activeUntil: null };
+    const serverPrice = Number(data.priceToman);
+    if (Number.isFinite(serverPrice) && serverPrice > 0) {
+        MONTHLY_LICENSE_PRICE = serverPrice;
+    }
+    updateSubscriptionStatus();
+    return serverSubscriptionStatus;
+}
 
-    return false;
+function showPaymentReturnNotice() {
+    const params = new URLSearchParams(window.location.search);
+    const result = params.get("payment");
+    if (!result) return;
+
+    closeSubscriptionPaywall();
+    document.body.classList.remove("subscription-modal-open");
+    updateSubscriptionStatus();
+    if (result === "success") {
+        showToast(isSubscriptionActive()
+            ? "پرداخت با موفقیت تأیید شد؛ اشتراک شما فعال شد ✅"
+            : "پرداخت تأیید شده است؛ وضعیت اشتراک در حال همگام‌سازی است.");
+    } else if (result === "failed") {
+        showToast("پرداخت انجام نشد یا توسط درگاه تأیید نشد.");
+    } else {
+        showToast("نتیجه پرداخت هنوز نهایی نشده است؛ کمی بعد وضعیت را بررسی کنید.");
+    }
+
+    params.delete("payment");
+    const query = params.toString();
+    const cleanUrl = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
+    window.history.replaceState({}, document.title, cleanUrl);
+}
+
+async function beginSubscriptionPayment() {
+    const button = document.getElementById("buySubscriptionButton");
+    if (!button || button.disabled) return;
+    const previousText = button.textContent;
+    button.disabled = true;
+    button.textContent = "در حال اتصال به درگاه...";
+
+    try {
+        const response = await fetch("/api/payments/zibal/request", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Accept": "application/json" }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success" || !data.checkoutUrl) {
+            throw new Error(data.detail || "ایجاد درخواست پرداخت ناموفق بود.");
+        }
+        const checkoutUrl = new URL(data.checkoutUrl, window.location.origin);
+        if (checkoutUrl.protocol !== "https:" || !["gateway.zibal.ir", "gateway.zibal.io"].includes(checkoutUrl.hostname)) {
+            throw new Error("آدرس بازگشت درگاه معتبر نیست.");
+        }
+        // Close the subscription dialog as soon as the server has created a valid
+        // checkout session; then leave the app for the official gateway.
+        closeSubscriptionPaywall();
+        window.location.assign(checkoutUrl.href);
+    } catch (error) {
+        showToast(error?.message || "ارتباط با درگاه پرداخت برقرار نشد.");
+        button.disabled = false;
+        button.textContent = previousText || "فعال‌سازی اشتراک";
+    }
 }
 
 
@@ -1104,103 +1024,27 @@ function requireFeatureAccess() {
 ===================================================== */
 
 function updateSubscriptionStatus() {
+    const button = document.getElementById("subscriptionStatusButton");
+    if (!button) return;
 
-    const button =
-        document.getElementById(
-            "subscriptionStatusButton"
-        ) ||
-        document.getElementById(
-            "notificationButton"
-        );
-
-
-    if (!button) {
-        return;
-    }
-
-
-    if (
-        isSubscriptionActive()
-    ) {
-
-        button.className =
-            "subscription-icon-button active";
-
-
-        button.innerHTML = `
-            <span class="subscription-icon">
-                👑
-            </span>
-        `;
-
-
-        button.title =
-            "اشتراک فعال";
-
-
-        button.setAttribute(
-            "aria-label",
-            "اشتراک فعال"
-        );
-
-
-        return;
-    }
-
-
-    const trial =
-        getTrialStatus();
-
-
-    button.className =
-        "subscription-icon-button " +
-        trial.status;
-
-
+    const trial = getTrialStatus();
+    button.className = "subscription-icon-button " + (isSubscriptionActive() ? "active" : trial.status);
     button.innerHTML = `
-        <span class="subscription-icon">
-            👑
-        </span>
+        <span class="subscription-icon" aria-hidden="true">👑</span>
+        <span class="subscription-button-label">${isSubscriptionActive() ? "اشتراک فعال" : "تمدید اشتراک"}</span>
     `;
 
-
-    if (
-        trial.status ===
-        "trial"
-    ) {
-
-        button.title =
-            "نسخه آزمایشی - " +
-            toPersianDigits(
-                trial.remainingDays
-            ) +
-            " روز باقی مانده";
-
-    } else if (
-        trial.status ===
-        "warning"
-    ) {
-
-        button.title =
-            "نسخه آزمایشی - فقط " +
-            toPersianDigits(
-                trial.remainingDays
-            ) +
-            " روز باقی مانده";
-
+    if (isSubscriptionActive()) {
+        button.title = "اشتراک فعال";
+    } else if (trial.status === "trial") {
+        button.title = `نسخه آزمایشی — ${toPersianDigits(trial.remainingDays)} روز باقی مانده`;
+    } else if (trial.status === "warning") {
+        button.title = `نسخه آزمایشی — فقط ${toPersianDigits(trial.remainingDays)} روز باقی مانده`;
     } else {
-
-        button.title =
-            "دوره آزمایشی تمام شده است";
+        button.title = "دوره آزمایشی تمام شده است؛ برای ادامه اشتراک تهیه کنید";
     }
-
-
-    button.setAttribute(
-        "aria-label",
-        button.title
-    );
+    button.setAttribute("aria-label", button.title);
 }
-
 
 /* =====================================================
    CREATE SUBSCRIPTION PAYWALL
@@ -1256,9 +1100,8 @@ function createSubscriptionModal() {
             </div>
 
 
-            <div class="subscription-paywall-description">
-                برای ادامه ثبت و مدیریت هزینه‌ها،
-                اشتراک ماهانه را فعال کنید.
+            <div class="subscription-paywall-description" id="subscriptionTrialSummary">
+                برای ادامه ثبت و مدیریت هزینه‌ها، اشتراک ماهانه را فعال کنید.
             </div>
 
 
@@ -1375,15 +1218,7 @@ function createSubscriptionModal() {
         buyButton
     ) {
 
-        buyButton.addEventListener(
-            "click",
-            function () {
-
-                showToast(
-                    "💳 درگاه پرداخت را در مرحله بعد وصل می‌کنیم."
-                );
-            }
-        );
+        buyButton.addEventListener("click", beginSubscriptionPayment);
     }
 
 
@@ -1408,31 +1243,38 @@ function createSubscriptionModal() {
 ===================================================== */
 
 function showSubscriptionPaywall() {
-
     createSubscriptionModal();
+    const modal = document.getElementById("subscriptionPaywall");
+    if (!modal) return;
 
+    const title = modal.querySelector(".subscription-paywall-title");
+    const summary = document.getElementById("subscriptionTrialSummary");
+    const trial = getTrialStatus();
 
-    const modal =
-        document.getElementById(
-            "subscriptionPaywall"
-        );
-
-
-    if (!modal) {
-        return;
+    if (isSubscriptionActive()) {
+        if (title) title.textContent = "اشتراک شما فعال است";
+        if (summary) summary.textContent = "در صورت نیاز می‌توانید اطلاعات طرح اشتراک را بررسی کنید.";
+    } else if (trial.status === "trial") {
+        if (title) title.textContent = "دوره آزمایشی فعال است";
+        if (summary) summary.textContent = `از تاریخ ثبت‌نام شما در دیتابیس محاسبه شده؛ ${toPersianDigits(trial.remainingDays)} روز باقی مانده است.`;
+    } else if (trial.status === "warning") {
+        if (title) title.textContent = "دوره آزمایشی رو به پایان است";
+        if (summary) summary.textContent = `فقط ${toPersianDigits(trial.remainingDays)} روز از دوره آزمایشی باقی مانده است.`;
+    } else {
+        if (title) title.textContent = "دوره آزمایشی تمام شده است";
+        if (summary) summary.textContent = "برای ادامه استفاده از امکانات ثبت و مدیریت هزینه، اشتراک را فعال کنید.";
     }
 
+    const checkoutButton = document.getElementById("buySubscriptionButton");
+    if (checkoutButton) {
+        checkoutButton.textContent = isSubscriptionActive()
+            ? "تمدید ۳۰ روزه اشتراک"
+            : "پرداخت و فعال‌سازی اشتراک";
+    }
 
-    modal.classList.remove(
-        "hidden"
-    );
-
-
-    document.body.classList.add(
-        "subscription-modal-open"
-    );
+    modal.classList.remove("hidden");
+    document.body.classList.add("subscription-modal-open");
 }
-
 
 /* =====================================================
    CLOSE SUBSCRIPTION PAYWALL
@@ -1467,60 +1309,9 @@ function closeSubscriptionPaywall() {
 ===================================================== */
 
 function handleSubscriptionClick() {
-
-    if (
-        isSubscriptionActive()
-    ) {
-
-        showToast(
-            "اشتراک شما فعال است ✅"
-        );
-
-        return;
-    }
-
-
-    const trial =
-        getTrialStatus();
-
-
-    if (
-        trial.status ===
-        "trial"
-    ) {
-
-        showToast(
-            "نسخه آزمایشی شما " +
-            toPersianDigits(
-                trial.remainingDays
-            ) +
-            " روز دیگر اعتبار دارد."
-        );
-
-        return;
-    }
-
-
-    if (
-        trial.status ===
-        "warning"
-    ) {
-
-        showToast(
-            "⚠️ فقط " +
-            toPersianDigits(
-                trial.remainingDays
-            ) +
-            " روز از نسخه آزمایشی باقی مانده است."
-        );
-
-        return;
-    }
-
-
+    // The header button consistently opens subscription details/checkout.
     showSubscriptionPaywall();
 }
-
 
 /* =====================================================
    LOAD TODAY DATE
@@ -1568,7 +1359,8 @@ async function loadTodaySummary() {
 
         const response =
             await fetch(
-                "/api/expenses/summary/today"
+                "/api/expenses/summary/today",
+                { cache: "no-store" }
             );
 
 
@@ -1665,7 +1457,8 @@ async function loadMonthlySummary() {
 
         const response =
             await fetch(
-                "/api/expenses/summary/month"
+                "/api/expenses/summary/month",
+                { credentials: "same-origin", cache: "no-store" }
             );
 
 
@@ -2486,7 +2279,8 @@ async function loadExpenses() {
                     monthStart
                 )}&to_date=${encodeURIComponent(
                     today
-                )}`
+                )}`,
+                { cache: "no-store" }
             );
 
 
@@ -3110,7 +2904,6 @@ async function confirmExpense() {
 
 
             await refreshDashboard();
-            await loadAccounts();
 
         } else {
             showToast(
@@ -3354,9 +3147,10 @@ async function openEditExpense(
 
 
         if (amountElement) {
-
-            amountElement.value =
-                expense.amount;
+            const cleaned = normalizeMoneyInput(expense.amount);
+            amountElement.value = toPersianDigits(
+                cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, "٬")
+            );
         }
 
 
@@ -3620,9 +3414,7 @@ async function saveEditExpense() {
 
 
     const amount =
-        Number(
-            amountElement?.value
-        );
+        Number(normalizeMoneyInput(amountElement?.value || ""));
 
 
     const description =
@@ -4593,27 +4385,16 @@ function reportDateToISO(value) {
 // مقدار قابل نمایش در ورودی تقویم شمسی؛ با ارقام لاتین تا Datepicker
 // بتواند تاریخ اولیه را بدون ابهام تشخیص دهد. خود تقویم به زبان فارسی است.
 function reportDateToJalaliInput(value) {
-    const date = value instanceof Date
-        ? value
-        : reportDateFromISO(value);
-
+    const date = value instanceof Date ? value : reportDateFromISO(value);
     if (!date || Number.isNaN(date.getTime())) return "";
-
-    const parts = new Intl.DateTimeFormat(
-        "en-US-u-ca-persian-nu-latn",
-        {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit"
-        }
-    ).formatToParts(date);
-
+    const parts = new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+        year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(date);
     const part = type => parts.find(item => item.type === type)?.value || "";
     const year = part("year");
     const month = part("month").padStart(2, "0");
     const day = part("day").padStart(2, "0");
-
-    return year && month && day ? `${year}/${month}/${day}` : "";
+    return year && month && day ? toPersianDigits(`${year}/${month}/${day}`) : "";
 }
 
 const REPORT_JALALI_MONTHS = [
@@ -4678,9 +4459,15 @@ function parseReportJalaliInput(value) {
 
 function reportDateToJalaliInput(value) {
     const date = value instanceof Date ? value : reportDateFromISO(value);
-    const parts = reportGetJalaliParts(date);
-    if (!parts) return "";
-    return `${parts.year}/${String(parts.month).padStart(2, "0")}/${String(parts.day).padStart(2, "0")}`;
+    if (!date || Number.isNaN(date.getTime())) return "";
+    const parts = new Intl.DateTimeFormat("en-US-u-ca-persian-nu-latn", {
+        year: "numeric", month: "2-digit", day: "2-digit"
+    }).formatToParts(date);
+    const part = type => parts.find(item => item.type === type)?.value || "";
+    const year = part("year");
+    const month = part("month").padStart(2, "0");
+    const day = part("day").padStart(2, "0");
+    return year && month && day ? toPersianDigits(`${year}/${month}/${day}`) : "";
 }
 
 function getReportJalaliHiddenInputId(input) {
@@ -4822,7 +4609,7 @@ function renderReportJalaliPicker() {
     const { year, month, input } = reportJalaliPickerState;
     if (!input || !year || !month) return;
 
-    picker.querySelector("#reportJalaliPickerTitle").textContent = `${REPORT_JALALI_MONTHS[month - 1]} ${year}`;
+    picker.querySelector("#reportJalaliPickerTitle").textContent = `${REPORT_JALALI_MONTHS[month - 1]} ${toPersianDigits(year)}`;
     const daysContainer = picker.querySelector("#reportJalaliPickerDays");
     daysContainer.replaceChildren();
 
@@ -4853,8 +4640,8 @@ function renderReportJalaliPicker() {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "report-jalali-day";
-        button.textContent = String(day);
-        button.setAttribute("aria-label", `${year}/${String(month).padStart(2, "0")}/${String(day).padStart(2, "0")}`);
+        button.textContent = toPersianDigits(day);
+        button.setAttribute("aria-label", `${toPersianDigits(year)}/${toPersianDigits(String(month).padStart(2, "0"))}/${toPersianDigits(String(day).padStart(2, "0"))}`);
         if (iso === todayISO) button.classList.add("today");
         if (iso === selectedKey) button.classList.add("selected");
         if (iso > todayISO) {
@@ -4906,6 +4693,12 @@ function bindReportJalaliDatePickerInputs() {
 
         input.addEventListener("click", () => openReportJalaliPicker(input));
         input.addEventListener("input", () => {
+            const cursor = input.selectionStart;
+            const localized = toPersianDigits(input.value);
+            if (input.value !== localized) {
+                input.value = localized;
+                if (cursor !== null) input.setSelectionRange(cursor, cursor);
+            }
             syncHiddenValue();
             // Close the calendar as soon as the user begins typing, so the field remains editable.
             if (document.activeElement === input) closeReportJalaliPicker();
@@ -5008,7 +4801,7 @@ function setReportDateInputs(fromDate, toDate) {
 async function fetchReportExpenses(fromDate, toDate) {
     const url = `/api/expenses/?from_date=${encodeURIComponent(reportDateToISO(fromDate))}` +
         `&to_date=${encodeURIComponent(reportDateToISO(toDate))}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-store" });
     const data = await response.json();
 
     if (!response.ok || data.status !== "success") {
@@ -5196,34 +4989,10 @@ function renderReportCategoryChart(categories) {
     });
 }
 
-function renderReportCategoryBreakdown(categories) {
+function renderReportCategoryBreakdown() {
+    // Category amounts are represented only by the pie/doughnut chart.
     const container = document.getElementById("reportCategoryBreakdown");
-    if (!container) return;
-
-    if (!categories.length) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><div>در این بازه هزینه‌ای ثبت نشده است.</div></div>`;
-        return;
-    }
-
-    container.innerHTML = categories.map(category => {
-        const pct = Math.max(0, Math.min(100, Number(category.percentage || 0)));
-        return `
-            <div class="report-category-row">
-                <div class="report-category-row-top">
-                    <div class="report-category-name">
-                        <span class="report-category-icon">${escapeHtml(category.icon || categoryIcon(category.category_name))}</span>
-                        <span>${escapeHtml(category.category_name)}</span>
-                    </div>
-                    <div class="report-category-amount">${escapeHtml(formatMoney(category.total_amount))}</div>
-                </div>
-                <div class="report-category-progress"><span style="width:${pct.toFixed(1)}%"></span></div>
-                <div class="report-category-row-footer">
-                    <span>${toPersianDigits(category.expense_count)} تراکنش</span>
-                    <span>${toPersianDigits(pct.toFixed(1))}٪</span>
-                </div>
-            </div>
-        `;
-    }).join("");
+    if (container) container.remove();
 }
 
 function renderReportComparison(currentTotal, previousTotal, previousRange) {
@@ -5317,6 +5086,191 @@ async function loadReports() {
     }
 }
 
+const REPORT_SCHEDULE_WEEKDAYS = ["شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه"];
+
+function setReportScheduleStatus(message, isError = false) {
+    const el = document.getElementById("reportScheduleStatus");
+    if (!el) return;
+    el.textContent = message || "";
+    el.classList.toggle("error", Boolean(isError));
+}
+
+function updateReportScheduleDayOptions() {
+    const frequency = document.getElementById("reportScheduleFrequency")?.value || "WEEKLY";
+    const select = document.getElementById("reportScheduleDay");
+    const label = document.getElementById("reportScheduleDayLabel");
+    if (!select) return;
+    const previous = select.value;
+    if (frequency === "MONTHLY") {
+        if (label) label.textContent = "روز ماه";
+        select.innerHTML = Array.from({ length: 28 }, (_, i) => {
+            const day = i + 1;
+            return `<option value="${day}">روز ${toPersianDigits(day)} ماه</option>`;
+        }).join("");
+        select.value = String(Math.min(28, Math.max(1, Number(previous) || 1)));
+    } else {
+        if (label) label.textContent = "روز هفته";
+        select.innerHTML = REPORT_SCHEDULE_WEEKDAYS.map((name, i) =>
+            `<option value="${i}">${name}</option>`
+        ).join("");
+        select.value = String(Math.min(6, Math.max(0, Number(previous) || 0)));
+    }
+}
+
+function syncReportScheduleChannel() {
+    const input = document.getElementById("reportScheduleDestination");
+    const label = document.getElementById("reportScheduleDestinationLabel");
+    const help = document.getElementById("reportScheduleHelp");
+    if (input) {
+        input.type = "text";
+        input.autocomplete = "off";
+        input.placeholder = "Chat ID عددی یا شناسه کانال با @";
+    }
+    if (label) label.textContent = "شناسه چت تلگرام";
+    if (help) help.textContent = "گزارش قالب‌بندی‌شده Excel به تلگرام ارسال می‌شود. ابتدا ربات را Start کنید و Chat ID یا شناسه کانال عمومی را وارد کنید.";
+}
+
+function reportScheduleDescription(schedule) {
+    const timeText = escapeHtml(schedule.send_time || "09:00");
+    if (schedule.frequency === "WEEKLY") {
+        const day = REPORT_SCHEDULE_WEEKDAYS[Number(schedule.send_day)] || "شنبه";
+        return `هر هفته ${day} ساعت ${timeText}`;
+    }
+    return `هر ماه روز ${toPersianDigits(schedule.send_day)} ساعت ${timeText}`;
+}
+
+function reportScheduleChannelLabel(channel) {
+    return channel === "TELEGRAM" ? "تلگرام · Excel" : "کانال قدیمی";
+}
+
+function renderReportSchedules(schedules) {
+    const list = document.getElementById("reportScheduleList");
+    if (!list) return;
+    if (!schedules.length) {
+        list.innerHTML = '<div class="report-schedule-empty">هنوز گزارشی زمان‌بندی نشده است.</div>';
+        return;
+    }
+    list.innerHTML = schedules.map(schedule => {
+        const active = Boolean(schedule.is_active);
+        const statusLabel = schedule.last_status === "SENT"
+            ? "آخرین ارسال موفق"
+            : schedule.last_status === "FAILED"
+                ? `خطای ارسال: ${escapeHtml(schedule.last_error || "تنظیم کانال را بررسی کنید")}`
+                : "در انتظار ارسال";
+        const nextRun = schedule.next_run_at ? `ارسال بعدی: ${escapeHtml(schedule.next_run_at)}` : "زمان ارسال مشخص نیست";
+        return `
+            <article class="report-schedule-item ${active ? "" : "inactive"}">
+                <div class="report-schedule-item-main">
+                    <strong>${escapeHtml(reportScheduleChannelLabel(schedule.channel))} · ${escapeHtml(schedule.destination)}</strong>
+                    <span>${reportScheduleDescription(schedule)}</span>
+                    <small>${active ? nextRun : "غیرفعال"} · ${statusLabel}</small>
+                </div>
+                ${active ? `<button type="button" class="report-schedule-remove" data-report-schedule-delete="${Number(schedule.schedule_id)}" aria-label="غیرفعال کردن زمان‌بندی">غیرفعال</button>` : ""}
+            </article>`;
+    }).join("");
+}
+
+async function loadReportSchedules() {
+    const list = document.getElementById("reportScheduleList");
+    if (!list) return;
+    try {
+        const response = await fetch("/api/report-schedules/", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.detail || data.message || "دریافت زمان‌بندی‌ها انجام نشد.");
+        }
+        renderReportSchedules(Array.isArray(data.schedules) ? data.schedules : []);
+        setReportScheduleStatus("");
+    } catch (error) {
+        console.error("loadReportSchedules ERROR:", error);
+        list.innerHTML = '<div class="report-schedule-empty">جدول زمان‌بندی گزارش روی دیتابیس نصب نشده یا دریافت اطلاعات ناموفق بود.</div>';
+        setReportScheduleStatus(error.message || "دریافت زمان‌بندی‌ها ناموفق بود.", true);
+    }
+}
+
+async function saveReportSchedule(event) {
+    event.preventDefault();
+    const button = document.getElementById("saveReportScheduleButton");
+    const payload = {
+        frequency: document.getElementById("reportScheduleFrequency")?.value || "WEEKLY",
+        channel: "TELEGRAM",
+        destination: document.getElementById("reportScheduleDestination")?.value.trim() || "",
+        send_day: Number(document.getElementById("reportScheduleDay")?.value || 0),
+        send_time: document.getElementById("reportScheduleTime")?.value || "09:00"
+    };
+    if (!payload.destination) {
+        setReportScheduleStatus("مقصد ارسال را وارد کنید.", true);
+        document.getElementById("reportScheduleDestination")?.focus();
+        return;
+    }
+    if (button) { button.disabled = true; button.textContent = "در حال ذخیره..."; }
+    setReportScheduleStatus("در حال ذخیره زمان‌بندی...");
+    try {
+        const response = await fetch("/api/report-schedules/", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.detail || data.message || "ذخیره زمان‌بندی انجام نشد.");
+        }
+        setReportScheduleStatus(data.message || "زمان‌بندی ذخیره شد.");
+        showToast(data.message || "زمان‌بندی ذخیره شد.");
+        await loadReportSchedules();
+    } catch (error) {
+        console.error("saveReportSchedule ERROR:", error);
+        setReportScheduleStatus(error.message || "ذخیره زمان‌بندی انجام نشد.", true);
+    } finally {
+        if (button) { button.disabled = false; button.textContent = "ذخیره زمان‌بندی"; }
+    }
+}
+
+async function deactivateReportSchedule(scheduleId) {
+    if (!Number.isInteger(scheduleId) || scheduleId <= 0) return;
+    try {
+        const response = await fetch(`/api/report-schedules/${scheduleId}`, {
+            method: "DELETE",
+            credentials: "same-origin"
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") throw new Error(data.detail || data.message || "غیرفعال‌کردن زمان‌بندی انجام نشد.");
+        showToast(data.message || "زمان‌بندی غیرفعال شد.");
+        await loadReportSchedules();
+    } catch (error) {
+        setReportScheduleStatus(error.message || "غیرفعال‌کردن زمان‌بندی انجام نشد.", true);
+    }
+}
+
+function bindReportScheduleControls() {
+    const form = document.getElementById("reportScheduleForm");
+    if (form && form.dataset.bound !== "true") {
+        form.dataset.bound = "true";
+        form.addEventListener("submit", saveReportSchedule);
+    }
+    const frequency = document.getElementById("reportScheduleFrequency");
+    if (frequency && frequency.dataset.bound !== "true") {
+        frequency.dataset.bound = "true";
+        frequency.addEventListener("change", updateReportScheduleDayOptions);
+    }
+    const channel = document.getElementById("reportScheduleChannel");
+    if (channel && channel.dataset.bound !== "true") {
+        channel.dataset.bound = "true";
+        channel.addEventListener("change", syncReportScheduleChannel);
+    }
+    const list = document.getElementById("reportScheduleList");
+    if (list && list.dataset.bound !== "true") {
+        list.dataset.bound = "true";
+        list.addEventListener("click", event => {
+            const button = event.target.closest("[data-report-schedule-delete]");
+            if (button) deactivateReportSchedule(Number(button.dataset.reportScheduleDelete));
+        });
+    }
+    updateReportScheduleDayOptions();
+    syncReportScheduleChannel();
+}
+
 function accountTypeLabel(type) {
     return ({ CASH: "پول نقد", BANK: "حساب بانکی", CARD: "کارت بانکی" })[String(type || "CASH").toUpperCase()] || "حساب";
 }
@@ -5339,6 +5293,35 @@ function setAccountsStatus(message = "", isError = false) {
     el.classList.toggle("error", Boolean(isError));
 }
 
+function renderHomeWalletBalances(accounts) {
+    const container = document.getElementById("homeWalletBalanceItems");
+    const totalEl = document.getElementById("homeWalletTotal");
+    if (!container || !totalEl) return;
+
+    const active = (Array.isArray(accounts) ? accounts : []).filter(account => account && account.is_active);
+    const total = active.reduce((sum, account) => sum + Number(account.current_balance || 0), 0);
+    totalEl.textContent = formatMoney(total);
+
+    if (!active.length) {
+        container.innerHTML = '<span class="home-wallet-empty">هنوز کیف پول یا حساب فعالی ثبت نشده است.</span>';
+        return;
+    }
+
+    container.innerHTML = active
+        .slice()
+        .sort((a, b) => String(a.account_name || "").localeCompare(String(b.account_name || ""), "fa"))
+        .map(account => {
+            const balance = Number(account.current_balance || 0);
+            const type = String(account.account_type || "CASH").toUpperCase();
+            return `<div class="home-wallet-balance-item ${balance < 0 ? "negative" : ""}">
+                <span class="home-wallet-account-icon" aria-hidden="true">${accountTypeIcon(type)}</span>
+                <span class="home-wallet-account-name">${escapeHtml(account.account_name || accountTypeLabel(type))}</span>
+                <strong>${escapeHtml(formatMoney(balance))}</strong>
+            </div>`;
+        }).join("");
+}
+
+
 async function loadAccounts() {
     const list = document.getElementById("accountsList");
     if (!list) return;
@@ -5347,12 +5330,15 @@ async function loadAccounts() {
 
     try {
         const includeInactive = document.getElementById("showInactiveAccounts")?.checked ?? includeInactiveAccounts;
-        const response = await fetch(`/api/accounts/?include_inactive=${includeInactive ? "true" : "false"}`);
+        const response = await fetch(`/api/accounts/?include_inactive=${includeInactive ? "true" : "false"}`, {
+            credentials: "same-origin", cache: "no-store"
+        });
         const data = await response.json();
         if (!response.ok || data.status !== "success") throw new Error(data.message || "دریافت حساب‌ها ناموفق بود.");
 
         currentAccounts = (data.accounts || []).filter(item => item.is_active);
         const shownAccounts = data.accounts || [];
+        renderHomeWalletBalances(shownAccounts);
         const active = shownAccounts.filter(item => item.is_active);
         const balanceTotal = active.reduce((sum, item) => sum + Number(item.current_balance || 0), 0);
         const spentTotal = active.reduce((sum, item) => sum + Number(item.spent_total || 0), 0);
@@ -5376,6 +5362,7 @@ async function loadAccounts() {
                     <button type="button" class="primary-button" id="emptyAddAccountButton">ایجاد اولین حساب</button>
                 </div>`;
             setAccountsStatus("");
+            await loadUsageLevel();
             return;
         }
 
@@ -5385,6 +5372,12 @@ async function loadAccounts() {
             const isActive = Boolean(account.is_active);
             const spent = Number(account.spent_total || 0);
             const credits = Number(account.credit_total || 0);
+            const transferIn = Number(account.transfer_in_total || 0);
+            const transferOut = Number(account.transfer_out_total || 0);
+            const netTransfer = transferIn - transferOut;
+            const netTransferText = netTransfer > 0
+                ? `+${formatMoney(netTransfer)}`
+                : formatMoney(netTransfer);
             const balance = Number(account.current_balance || 0);
             return `
                 <article class="account-card ${isActive ? "" : "account-card-inactive"}" data-account-id="${accountId}">
@@ -5409,8 +5402,9 @@ async function loadAccounts() {
                     </div>
                     <div class="account-card-stats">
                         <div><span>موجودی اولیه</span><strong>${formatMoney(Number(account.initial_balance || 0))}</strong></div>
-                        <div><span>ورودی‌ها</span><strong>${formatMoney(credits)}</strong></div>
-                        <div><span>هزینه ثبت‌شده</span><strong>${formatMoney(spent)}</strong></div>
+                        <div><span>درآمد و واریز</span><strong>${formatMoney(credits)}</strong></div>
+                        <div><span>هزینه‌های ثبت‌شده</span><strong>${formatMoney(spent)}</strong></div>
+                        <div><span>خالص انتقال</span><strong class="${netTransfer > 0 ? "account-stat-positive" : netTransfer < 0 ? "account-stat-negative" : ""}" title="انتقال ورودی منهای انتقال خروجی">${netTransferText}</strong></div>
                         <div><span>تعداد هزینه</span><strong>${formatNumber(Number(account.expense_count || 0))}</strong></div>
                     </div>
                     ${isActive ? `<button type="button" class="account-credit-button" data-account-action="credit" data-account-id="${accountId}">＋ ثبت درآمد / افزایش موجودی</button>` : ""}
@@ -5420,10 +5414,15 @@ async function loadAccounts() {
                 </article>`;
         }).join("");
         setAccountsStatus(`${formatNumber(shownAccounts.length)} حساب نمایش داده شد.`);
+        await loadUsageLevel();
     } catch (error) {
         console.error("loadAccounts ERROR:", error);
         list.innerHTML = '<div class="empty-state">خطا در دریافت حساب‌ها. سرویس حساب‌ها و اتصال Oracle را بررسی کنید.</div>';
         setAccountsStatus(error.message || "خطا در دریافت حساب‌ها.", true);
+        const homeWallet = document.getElementById("homeWalletBalanceItems");
+        const homeTotal = document.getElementById("homeWalletTotal");
+        if (homeWallet) homeWallet.innerHTML = '<span class="home-wallet-empty">موجودی در حال حاضر قابل دریافت نیست؛ دوباره تلاش کنید.</span>';
+        if (homeTotal) homeTotal.textContent = "—";
     }
 }
 
@@ -5868,6 +5867,7 @@ function showAppView(viewName) {
         initializeReportJalaliDatePicker();
         bindReportJalaliDatePickerInputs();
         loadReports();
+        loadReportSchedules();
     } else if (showAccounts) {
         loadAccounts();
     }
@@ -5924,6 +5924,125 @@ function initializeReportControls() {
             loadReports();
         });
     }
+    bindReportScheduleControls();
+}
+
+
+
+
+/* =====================================================
+   SMART SPENDING INSIGHTS
+===================================================== */
+
+async function loadSpendingInsights() {
+    const section = document.getElementById("spendingInsightsSection");
+    const list = document.getElementById("spendingInsightsList");
+    const periodElement = document.getElementById("spendingInsightsPeriod");
+
+    if (!section || !list) return;
+
+    if (!isNotificationsEnabled()) {
+        section.hidden = true;
+        return;
+    }
+
+    try {
+        const response = await fetch("/api/expenses/insights", { cache: "no-store" });
+        const data = await response.json();
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.message || "Spending insights API error");
+        }
+
+        if (!data.active || !Array.isArray(data.insights) || data.insights.length === 0) {
+            section.hidden = true;
+            return;
+        }
+
+        const dismissalKey = `expense_app_spending_insights_dismissed_${data.period_key || "current"}`;
+        if (localStorage.getItem(dismissalKey) === "true") {
+            section.hidden = true;
+            return;
+        }
+
+        if (periodElement) {
+            const day = toPersianDigits(data.current_day || "");
+            const month = data.current_month_name || "ماه جاری";
+            const previousMonth = data.previous_month_name || "ماه قبل";
+            periodElement.textContent = `از ابتدای ${month} تا روز ${day}؛ مقایسه با همین بازه ${previousMonth}`;
+        }
+
+        list.innerHTML = data.insights.map((item) => {
+            const icon = item.kind === "lunch"
+                ? "🍽️"
+                : categoryIcon(item.category_name || "سایر");
+            const current = formatMoney(item.current_total || 0);
+            const previous = formatMoney(item.previous_total || 0);
+            const change = item.change_label
+                ? item.change_label
+                : (item.increase_percent === null || item.increase_percent === undefined
+                    ? "افزایش نسبت به بازه بدون هزینه"
+                    : `${toPersianDigits(item.increase_percent)}٪ افزایش`);
+
+            return `
+                <article class="spending-insight-item">
+                    <div class="spending-insight-item-icon" aria-hidden="true">${escapeHtml(icon)}</div>
+                    <div class="spending-insight-content">
+                        <div class="spending-insight-title-row">
+                            <strong>${escapeHtml(item.title || "هشدار هزینه")}</strong>
+                            <span class="spending-insight-change">${escapeHtml(change)}</span>
+                        </div>
+                        <p>${escapeHtml(item.message || "هزینه این بخش نسبت به بازه مشابه ماه قبل افزایش یافته است.")}</p>
+                        <div class="spending-insight-metrics">
+                            <span>این ماه: <b>${escapeHtml(current)}</b></span>
+                            <span>ماه قبل: <b>${escapeHtml(previous)}</b></span>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }).join("");
+
+        let dismissButton = section.querySelector("[data-dismiss-spending-insights]");
+        if (!dismissButton) {
+            dismissButton = document.createElement("button");
+            dismissButton.type = "button";
+            dismissButton.className = "spending-insights-dismiss";
+            dismissButton.setAttribute("data-dismiss-spending-insights", "true");
+            dismissButton.setAttribute("aria-label", "بستن هشدارهای هزینه");
+            dismissButton.textContent = "×";
+            const header = section.querySelector(".spending-insights-header");
+            if (header) header.appendChild(dismissButton);
+        }
+
+        dismissButton.onclick = () => {
+            localStorage.setItem(dismissalKey, "true");
+            section.hidden = true;
+        };
+
+        section.hidden = false;
+    } catch (error) {
+        console.error("loadSpendingInsights ERROR:", error);
+        section.hidden = true;
+    }
+}
+
+
+async function loadUsageLevel() {
+    const badge = document.getElementById("usageLevelBadge");
+    if (!badge) return;
+    try {
+        const response = await fetch("/api/auth/usage-level", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success" || !data.usage) return;
+        const usage = data.usage;
+        const labels = { PLATINUM: "پلاتینیوم", GOLD: "طلایی", SILVER: "نقره‌ای", BRONZE: "برنز" };
+        const label = labels[usage.level] || usage.label || "برنز";
+        badge.className = `usage-level-badge ${String(usage.level || "BRONZE").toLowerCase()}`;
+        badge.textContent = `سطح ${label}`;
+        badge.title = `بر اساس ${toPersianDigits(usage.score || 0)} امتیاز فعالیت مالی؛ هزینه‌ها، واریزها، انتقال‌ها و حساب‌های فعال`;
+        badge.setAttribute("aria-label", badge.title);
+    } catch (error) {
+        console.warn("loadUsageLevel could not load the profile:", error?.message || error);
+    }
 }
 
 
@@ -5932,6 +6051,9 @@ function initializeReportControls() {
 ===================================================== */
 
 async function refreshDashboard() {
+
+    // The date label, today's total and recent-expense filter must share one clock.
+    await syncApplicationDate();
 
     loadTodayDate();
 
@@ -5953,8 +6075,9 @@ async function refreshDashboard() {
     await Promise.all([
         loadTodaySummary(),
         loadMonthlySummary(),
-        loadCategories(),
-        loadExpenses()
+        loadExpenses(),
+        loadSpendingInsights(),
+        loadAccounts()
     ]);
 }
 
@@ -6000,28 +6123,12 @@ function createSettingsDetailModal() {
 
 
 function closeSettingsDetail() {
-
-    const modal =
-        document.getElementById(
-            "settingsDetailModal"
-        );
-
-
-    if (!modal) {
-        return;
-    }
-
-
-    modal.classList.add(
-        "hidden"
-    );
-
-
-    document.body.classList.remove(
-        "settings-modal-open"
-    );
+    const modal = document.getElementById("settingsDetailModal");
+    if (!modal) return;
+    modal.classList.add("hidden");
+    document.body.classList.remove("settings-modal-open");
+    refreshSettingsMenuSummaries();
 }
-
 
 function renderSettingsDetail(
     title,
@@ -6209,7 +6316,7 @@ function openAccountSettings() {
                     SETTINGS_KEYS.DISPLAY_NAME,
                     name
                 );
-
+                refreshSettingsMenuSummaries();
 
                 showToast(
                     "نام کاربر ذخیره شد ✅"
@@ -6321,9 +6428,7 @@ function openFinancialSettings() {
 
                 closeSettingsDetail();
 
-
-                await refreshDashboard();
-
+                await refreshApplicationAfterSettingsChange();
 
                 showToast(
                     selectedCurrency === "rial"
@@ -6337,114 +6442,182 @@ function openFinancialSettings() {
 
 
 /* =====================================================
+   PWA DAILY WEB PUSH HELPERS
+===================================================== */
+function base64UrlToUint8Array(value) {
+    const padding = "=".repeat((4 - value.length % 4) % 4);
+    const base64 = (value + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = window.atob(base64);
+    return Uint8Array.from([...raw].map(char => char.charCodeAt(0)));
+}
+
+async function registerAppServiceWorker() {
+    if (!("serviceWorker" in navigator)) throw new Error("این مرورگر از Service Worker پشتیبانی نمی‌کند.");
+    if (!window.isSecureContext) throw new Error("اعلان PWA فقط در HTTPS یا localhost در دسترس است.");
+    appServiceWorkerRegistration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+    return await navigator.serviceWorker.ready;
+}
+
+async function notificationApiJson(url, options = {}) {
+    const response = await fetch(url, { credentials: "same-origin", cache: "no-store", ...options });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.status === "error") throw new Error(data.detail || data.message || "درخواست اعلان ناموفق بود.");
+    return data;
+}
+
+async function enableDailyPushNotifications(reminderTime) {
+    if (!("Notification" in window) || !("PushManager" in window)) {
+        throw new Error("این مرورگر از اعلان Push پشتیبانی نمی‌کند.");
+    }
+    if (!window.isSecureContext) throw new Error("ابتدا سایت را با HTTPS باز کن.");
+    const permission = Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("اجازه اعلان در مرورگر داده نشد.");
+
+    const config = await notificationApiJson("/api/notifications/config");
+    if (!config.configured || !config.public_key) {
+        throw new Error(config.message || "کلیدهای Web Push هنوز روی سرور تنظیم نشده‌اند.");
+    }
+
+    const registration = await registerAppServiceWorker();
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: base64UrlToUint8Array(config.public_key)
+        });
+    }
+    const subscriptionJson = subscription.toJSON();
+    if (!subscriptionJson.endpoint || !subscriptionJson.keys?.p256dh || !subscriptionJson.keys?.auth) {
+        throw new Error("اطلاعات اشتراک Push از مرورگر ناقص دریافت شد.");
+    }
+
+    await notificationApiJson("/api/notifications/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            endpoint: subscriptionJson.endpoint,
+            keys: subscriptionJson.keys,
+            reminder_time: reminderTime || "20:00",
+            timezone: "Asia/Tehran"
+        })
+    });
+
+    pushDailyReminderActive = true;
+    setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, reminderTime || "20:00");
+    return true;
+}
+
+async function disableDailyPushNotifications() {
+    // Disable server-side first so no future reminders are queued for this user.
+    await notificationApiJson("/api/notifications/disable", { method: "POST" });
+    if (!("serviceWorker" in navigator)) {
+        pushDailyReminderActive = false;
+        return;
+    }
+    const registration = appServiceWorkerRegistration || await navigator.serviceWorker.getRegistration("/");
+    const subscription = registration ? await registration.pushManager.getSubscription() : null;
+    if (subscription) await subscription.unsubscribe();
+    pushDailyReminderActive = false;
+}
+
+/* =====================================================
    NOTIFICATION SETTINGS
 ===================================================== */
 
-function openNotificationSettings() {
-
-    const enabled =
-        isNotificationsEnabled();
-
+async function openNotificationSettings() {
+    let pushStatus = { active: false, reminder_time: getSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, "20:00") };
+    try {
+        const response = await fetch("/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.status === "success") pushStatus = data;
+    } catch (_) {}
+    pushDailyReminderActive = Boolean(pushStatus.active);
+    const enabled = isNotificationsEnabled();
+    const reminderTime = getSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, pushStatus.reminder_time || "20:00");
 
     renderSettingsDetail(
         "اعلان‌ها",
-        "تنظیمات یادآوری",
+        "هشدارهای هزینه و یادآوری روزانه",
         "🔔",
         `
-
-            <div class="edit-form">
-
-                <label for="settingsNotifications">
-                    وضعیت اعلان‌ها
-                </label>
-
-
+            <div class="edit-form notification-settings-form">
+                <label for="settingsNotifications">هشدارهای تحلیل هزینه داخل برنامه</label>
                 <select id="settingsNotifications">
-
-                    <option
-                        value="true"
-                        ${
-                            enabled
-                                ? "selected"
-                                : ""
-                        }
-                    >
-                        فعال
-                    </option>
-
-
-                    <option
-                        value="false"
-                        ${
-                            !enabled
-                                ? "selected"
-                                : ""
-                        }
-                    >
-                        غیرفعال
-                    </option>
-
+                    <option value="true" ${enabled ? "selected" : ""}>فعال</option>
+                    <option value="false" ${!enabled ? "selected" : ""}>غیرفعال</option>
                 </select>
 
+                <label for="settingsDailyReminderTime">ساعت یادآوری روزانه</label>
+                <select id="settingsDailyReminderTime">
+                    <option value="08:00" ${reminderTime === "08:00" ? "selected" : ""}>۰۸:۰۰ صبح</option>
+                    <option value="13:00" ${reminderTime === "13:00" ? "selected" : ""}>۱۳:۰۰</option>
+                    <option value="20:00" ${reminderTime === "20:00" ? "selected" : ""}>۲۰:۰۰</option>
+                    <option value="21:00" ${reminderTime === "21:00" ? "selected" : ""}>۲۱:۰۰</option>
+                </select>
 
-                <button
-                    type="button"
-                    class="primary-button full-width"
-                    id="saveNotificationSettingsButton"
-                >
-                    ذخیره تنظیمات
-                </button>
+                <div id="dailyPushStatus" class="push-reminder-status" role="status">
+                    ${pushStatus.active ? "یادآور روزانه روی این مرورگر فعال است." : "یادآور روزانه هنوز روی این مرورگر فعال نشده است."}
+                </div>
 
+                <button type="button" class="primary-button full-width" id="saveNotificationSettingsButton">ذخیره تنظیمات</button>
+                <button type="button" class="primary-button full-width" id="enableDailyPushButton">فعال‌سازی اعلان روزانه</button>
+                <button type="button" class="secondary-button full-width" id="disableDailyPushButton">غیرفعال‌سازی اعلان روزانه</button>
+                <p class="settings-item-description push-reminder-note">برای ارسال اعلان وقتی برنامه بسته است، اجازه مرورگر و تنظیم VAPID و زمان‌بند روی سرور لازم است.</p>
             </div>
-
         `
     );
 
-
-    const saveButton =
-        document.getElementById(
-            "saveNotificationSettingsButton"
-        );
-
-
-    if (
-        saveButton
-    ) {
-
-        saveButton.addEventListener(
-            "click",
-            function () {
-
-                const select =
-                    document.getElementById(
-                        "settingsNotifications"
-                    );
-
-
-                const value =
-                    select?.value ===
-                    "true";
-
-
-                setSetting(
-                    SETTINGS_KEYS.NOTIFICATIONS,
-                    value
-                );
-
-
-                closeSettingsDetail();
-
-
-                showToast(
-                    value
-                        ? "اعلان‌ها فعال شد ✅"
-                        : "اعلان‌ها غیرفعال شد ✅"
-                );
+    document.getElementById("saveNotificationSettingsButton")?.addEventListener("click", async () => {
+        const localEnabled = document.getElementById("settingsNotifications")?.value === "true";
+        const time = document.getElementById("settingsDailyReminderTime")?.value || "20:00";
+        setSetting(SETTINGS_KEYS.NOTIFICATIONS, localEnabled);
+        setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, time);
+        try {
+            if (pushDailyReminderActive) {
+                const response = await fetch("/api/notifications/reminder-time", {
+                    method: "POST", credentials: "same-origin",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ reminder_time: time })
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(data.detail || "ذخیره ساعت یادآوری ناموفق بود.");
             }
-        );
-    }
+            await loadSpendingInsights();
+            refreshSettingsMenuSummaries();
+            showToast("تنظیمات اعلان ذخیره شد ✅");
+        } catch (error) {
+            showToast(error.message || "ذخیره تنظیمات ناموفق بود.");
+        }
+    });
+    document.getElementById("enableDailyPushButton")?.addEventListener("click", async () => {
+        const time = document.getElementById("settingsDailyReminderTime")?.value || "20:00";
+        const status = document.getElementById("dailyPushStatus");
+        try {
+            if (status) status.textContent = "در حال فعال‌سازی اعلان روزانه...";
+            await enableDailyPushNotifications(time);
+            if (status) status.textContent = "یادآور روزانه فعال شد؛ در ساعت انتخاب‌شده اعلان ارسال می‌شود.";
+            showToast("اعلان روزانه فعال شد ✅");
+            refreshSettingsMenuSummaries();
+        } catch (error) {
+            if (status) status.textContent = error?.message || "فعال‌سازی اعلان روزانه ناموفق بود.";
+            showToast(error?.message || "فعال‌سازی اعلان روزانه ناموفق بود.");
+        }
+    });
+    document.getElementById("disableDailyPushButton")?.addEventListener("click", async () => {
+        const status = document.getElementById("dailyPushStatus");
+        try {
+            await disableDailyPushNotifications();
+            if (status) status.textContent = "یادآور روزانه غیرفعال شد.";
+            showToast("اعلان روزانه غیرفعال شد.");
+            refreshSettingsMenuSummaries();
+        } catch (error) {
+            if (status) status.textContent = error?.message || "غیرفعال‌سازی اعلان ناموفق بود.";
+            showToast(error?.message || "غیرفعال‌سازی اعلان ناموفق بود.");
+        }
+    });
 }
-
 
 /* =====================================================
    VOICE SETTINGS
@@ -6668,10 +6841,8 @@ function openThemeSettings() {
 
 
                 applyTheme();
-
-
                 closeSettingsDetail();
-
+                refreshSettingsMenuSummaries();
 
                 showToast(
                     "ظاهر برنامه ذخیره شد ✅"
@@ -6998,40 +7169,6 @@ function createSettingsModal() {
                 <button
                     class="settings-item"
                     type="button"
-                    data-setting="account"
-                >
-
-                    <div class="settings-item-icon">
-                        👤
-                    </div>
-
-
-                    <div class="settings-item-text">
-
-                        <div class="settings-item-title">
-                            حساب کاربری
-                        </div>
-
-
-                        <div class="settings-item-description">
-                            ${escapeHtml(
-                                getDisplayName()
-                            )}
-                        </div>
-
-                    </div>
-
-
-                    <div class="settings-item-arrow">
-                        ‹
-                    </div>
-
-                </button>
-
-
-                <button
-                    class="settings-item"
-                    type="button"
                     data-setting="finance"
                 >
 
@@ -7328,6 +7465,37 @@ function createSettingsModal() {
 
 
 /* =====================================================
+   REFRESH SETTINGS MENU SUMMARIES
+===================================================== */
+function refreshSettingsMenuSummaries() {
+    const setSummary = (key, value) => {
+        const node = document.querySelector(`[data-setting="${key}"] .settings-item-description`);
+        if (node) node.textContent = value;
+    };
+    setSummary("account", getDisplayName());
+    setSummary("finance", `واحد نمایش: ${getCurrency() === "rial" ? "ریال" : "تومان"}`);
+    setSummary("notifications", `${isNotificationsEnabled() ? "بینش هزینه: فعال" : "بینش هزینه: غیرفعال"} · یادآور روزانه: ${pushDailyReminderActive ? "فعال" : "غیرفعال"}`);
+    setSummary("voice", isVoiceEnabled() ? "فعال" : "غیرفعال");
+    const theme = getThemePreference();
+    setSummary("theme", theme === "dark" ? "تاریک" : theme === "light" ? "روشن" : "سیستم");
+    updateSettingsSubscriptionStatus();
+}
+
+async function refreshApplicationAfterSettingsChange() {
+    refreshSettingsMenuSummaries();
+    updateSubscriptionStatus();
+    await refreshDashboard();
+    const reportsView = document.getElementById("reportsView");
+    if (reportsView && !reportsView.hidden) {
+        await loadReports();
+    }
+    const accountsView = document.getElementById("accountsView");
+    if (accountsView && !accountsView.hidden) {
+        await loadAccounts();
+    }
+}
+
+/* =====================================================
    OPEN SETTINGS
 ===================================================== */
 
@@ -7356,7 +7524,7 @@ function openSettings() {
         "settings-modal-open"
     );
 
-
+    refreshSettingsMenuSummaries();
     updateSettingsSubscriptionStatus();
 }
 
@@ -7564,18 +7732,14 @@ function createCategoryManagementModal() {
             </div>
 
 
-            <div
-                class="category-management-footer"
-            >
-
-                <button
-                    type="button"
-                    class="primary-button"
-                    id="addCategoryButton"
-                >
+            <div class="category-management-footer category-management-footer-actions">
+                <button type="button" class="secondary-button" id="prepareExistingCategoryCatalogsButton">
+                    ساخت فهرست اقلام دسته‌های قبلی
+                </button>
+                <button type="button" class="primary-button" id="addCategoryButton">
                     ➕ افزودن دسته‌بندی
                 </button>
-
+                <div id="categoryCatalogBackfillStatus" class="category-catalog-backfill-status" role="status" aria-live="polite"></div>
             </div>
 
         </div>
@@ -7634,6 +7798,53 @@ function createCategoryManagementModal() {
             "click",
             openAddCategory
         );
+    }
+
+    document.getElementById("prepareExistingCategoryCatalogsButton")?.addEventListener(
+        "click",
+        prepareExistingCategoryCatalogs
+    );
+}
+
+async function prepareExistingCategoryCatalogs() {
+    const button = document.getElementById("prepareExistingCategoryCatalogsButton");
+    const status = document.getElementById("categoryCatalogBackfillStatus");
+    if (!button) return;
+    button.disabled = true;
+    button.textContent = "در حال آماده‌سازی...";
+    if (status) status.textContent = "در حال بررسی دسته‌های قبلی...";
+    try {
+        const response = await fetch("/api/categories/prepare-existing-catalogs", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin"
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.message || data.detail || "آماده‌سازی دسته‌های قبلی انجام نشد.");
+        }
+        if (status) status.textContent = data.message || "آماده‌سازی آغاز شد.";
+        const jobIds = Array.isArray(data.job_ids) ? data.job_ids : [];
+        if (jobIds.length) {
+            const jobs = await Promise.all(jobIds.map(id => waitForCategoryCatalogJob(id, 50)));
+            const completed = jobs.filter(job => job.job_status === "COMPLETED").length;
+            const failed = jobs.length - completed;
+            const message = `آماده‌سازی تمام شد: ${formatNumber(completed)} موفق، ${formatNumber(failed)} ناموفق.`;
+            if (status) status.textContent = message;
+            showToast(message);
+        } else {
+            showToast(data.message || "همه دسته‌ها آماده هستند.");
+        }
+        await loadCategoryManagement();
+    } catch (error) {
+        console.error("prepareExistingCategoryCatalogs ERROR:", error);
+        if (status) status.textContent = error.message || "خطا در آماده‌سازی دسته‌ها.";
+        showToast(error.message || "آماده‌سازی دسته‌ها انجام نشد.");
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = "ساخت فهرست اقلام دسته‌های قبلی";
+        }
     }
 }
 
@@ -7836,6 +8047,13 @@ function openCategoryForm(
                                 : "ایجاد دسته‌بندی"
                         }
                     </button>
+
+                    <div
+                        id="categoryCatalogProgress"
+                        class="category-catalog-progress hidden"
+                        role="status"
+                        aria-live="polite"
+                    ></div>
 
                 </div>
 
@@ -8081,21 +8299,57 @@ function closeCategoryForm() {
 
 
 /* =====================================================
+   CATEGORY CATALOG BACKGROUND JOB POLLING
+===================================================== */
+
+async function waitForCategoryCatalogJob(jobId, maxAttempts = 50) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        if (attempt > 0) {
+            await new Promise(resolve => setTimeout(resolve, 600));
+        }
+
+        try {
+            const response = await fetch(
+                `/api/categories/catalog-jobs/${encodeURIComponent(jobId)}?t=${Date.now()}`,
+                { cache: "no-store" }
+            );
+            const data = await response.json();
+            if (!response.ok || data.status !== "success" || !data.job) {
+                return {
+                    job_status: "ERROR",
+                    message: data.message || "وضعیت آماده‌سازی قابل دریافت نیست."
+                };
+            }
+
+            const job = data.job;
+            if (["COMPLETED", "FAILED"].includes(job.job_status)) {
+                return job;
+            }
+        } catch (error) {
+            console.error("waitForCategoryCatalogJob:", error);
+            return {
+                job_status: "ERROR",
+                message: "ارتباط با سرویس آماده‌سازی اقلام برقرار نشد."
+            };
+        }
+    }
+
+    return {
+        job_status: "TIMEOUT",
+        message: "آماده‌سازی بیشتر از حد معمول طول کشید؛ دسته ذخیره شده و می‌توانید آماده‌سازی را دوباره اجرا کنید."
+    };
+}
+
+
+/* =====================================================
    SAVE CATEGORY
 ===================================================== */
 
 async function saveCategory(
     isEdit
 ) {
-
-    if (
-        !requireFeatureAccess()
-    ) {
-
-        return;
-    }
-
-
+    // Category setup is account configuration, not a billable expense-entry
+    // operation. Keep it available even when the trial has expired.
     const nameInput =
         document.getElementById(
             "categoryFormName"
@@ -8280,20 +8534,49 @@ async function saveCategory(
         }
 
 
+        if (!isEdit && data.catalog_job_id) {
+            const progress = document.getElementById("categoryCatalogProgress");
+            if (progress) {
+                progress.classList.remove("hidden");
+                progress.innerHTML = `
+                    <span class="category-catalog-spinner" aria-hidden="true"></span>
+                    <span>دسته ذخیره شد؛ در حال آماده‌سازی اقلام مرتبط با «${escapeHtml(categoryName)}»...</span>
+                `;
+            }
+            button.textContent = "در حال آماده‌سازی اقلام...";
+            showToast("دسته ذخیره شد؛ فهرست اقلام در حال آماده‌سازی است.");
+
+            const job = await waitForCategoryCatalogJob(data.catalog_job_id);
+
+            closeCategoryForm();
+            await loadCategoryManagement();
+            await refreshDashboard();
+
+            if (job.job_status === "COMPLETED") {
+                if (job.catalog_kind === "GENERIC") {
+                    showToast(`برای «${categoryName}» ${formatNumber(job.item_count)} قلم پایه آماده شد؛ فهرست تخصصی بعداً قابل تکمیل است.`);
+                } else {
+                    showToast(`فهرست ${formatNumber(job.item_count)} قلم پیشنهادی برای «${categoryName}» آماده شد ✅`);
+                }
+            } else {
+                showToast(`دسته ذخیره شد، اما آماده‌سازی اقلام کامل نشد. ${job.message || job.error_message || "از گزینه آماده‌سازی مجدد استفاده کنید."}`);
+            }
+            return;
+        }
+
         closeCategoryForm();
-
-
         await loadCategoryManagement();
-
-
         await refreshDashboard();
 
-
-        showToast(
-            isEdit
-                ? "دسته‌بندی با موفقیت ویرایش شد ✅"
-                : "دسته‌بندی با موفقیت ایجاد شد ✅"
-        );
+        if (!isEdit && data.catalog_status === "NOT_CONFIGURED") {
+            showToast("دسته‌بندی ذخیره شد، اما جداول فهرست اقلام نصب نیستند؛ اسکریپت SQL را یک‌بار اجرا کنید.");
+        } else {
+            showToast(
+                isEdit
+                    ? "دسته‌بندی با موفقیت ویرایش شد ✅"
+                    : "دسته‌بندی با موفقیت ایجاد شد ✅"
+            );
+        }
 
 
     } catch (error) {
@@ -8598,6 +8881,19 @@ async function loadCategoryManagement() {
             data.categories ||
             [];
 
+        // Category names are shared across accounts. All active users may add a
+        // new shared category, while editing/deactivation/deletion stays owner-only.
+        let isCategoryOwner = false;
+        try {
+            const meResponse = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+            const meData = await meResponse.json().catch(() => ({}));
+            isCategoryOwner = Number(meData?.user?.user_id) === 1;
+        } catch (_ignored) {
+            isCategoryOwner = false;
+        }
+        const backfillButton = document.getElementById("prepareExistingCategoryCatalogsButton");
+        if (backfillButton) backfillButton.hidden = !isCategoryOwner;
+
 
         if (
             categories.length ===
@@ -8707,44 +9003,12 @@ async function loadCategoryManagement() {
                     </div>
 
 
-                    <div
-                        class="category-management-actions"
-                    >
-
-                        <button
-                            type="button"
-                            class="category-action-button category-edit-action"
-                            title="ویرایش"
-                        >
-                            ✏️
-                        </button>
-
-
-                        <button
-                            type="button"
-                            class="category-action-button category-status-action"
-                            title="${
-                                isActive
-                                    ? "غیرفعال کردن"
-                                    : "فعال کردن"
-                            }"
-                        >
-                            ${
-                                isActive
-                                    ? "🔴"
-                                    : "🟢"
-                            }
-                        </button>
-
-
-                        <button
-                            type="button"
-                            class="category-action-button category-delete-action"
-                            title="حذف"
-                        >
-                            🗑️
-                        </button>
-
+                    <div class="category-management-actions">
+                        ${isCategoryOwner ? `
+                            <button type="button" class="category-action-button category-edit-action" title="ویرایش">✏️</button>
+                            <button type="button" class="category-action-button category-status-action" title="${isActive ? "غیرفعال کردن" : "فعال کردن"}">${isActive ? "🔴" : "🟢"}</button>
+                            <button type="button" class="category-action-button category-delete-action" title="حذف">🗑️</button>
+                        ` : ""}
                     </div>
 
                 `;
@@ -8995,9 +9259,19 @@ window.openDeleteExpense =
    EVENTS
 ===================================================== */
 
-document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+function initializeExpenseApplication() {
+
+        const logoutButton = document.getElementById("logoutButton");
+        if (logoutButton) {
+            logoutButton.addEventListener("click", async () => {
+                logoutButton.disabled = true;
+                try {
+                    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+                } finally {
+                    window.location.reload();
+                }
+            });
+        }
 
         initializeSettings();
 
@@ -9450,12 +9724,33 @@ document.addEventListener(
         });
         const formatMoneyTyping = event => {
             const input = event.target;
-            const cleaned = normalizeMoneyInput(input.value);
-            if (cleaned && /^\d+$/.test(cleaned)) input.value = cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            const oldValue = input.value;
+            const oldCursor = input.selectionStart;
+            const cleaned = normalizeMoneyInput(oldValue);
+            const formatted = cleaned && /^\d+$/.test(cleaned)
+                ? toPersianDigits(cleaned.replace(/\B(?=(\d{3})+(?!\d))/g, "٬"))
+                : toPersianDigits(oldValue);
+            if (input.value !== formatted) {
+                input.value = formatted;
+                if (oldCursor !== null && typeof input.setSelectionRange === "function") {
+                    const cursor = Math.max(0, Math.min(formatted.length, oldCursor + formatted.length - oldValue.length));
+                    input.setSelectionRange(cursor, cursor);
+                }
+            }
         };
         document.getElementById("accountInitialBalanceInput")?.addEventListener("input", formatMoneyTyping);
         document.getElementById("accountCreditAmountInput")?.addEventListener("input", formatMoneyTyping);
         document.getElementById("accountTransferAmountInput")?.addEventListener("input", formatMoneyTyping);
+        document.getElementById("editAmount")?.addEventListener("input", formatMoneyTyping);
+        document.getElementById("expenseText")?.addEventListener("input", event => {
+            const input = event.target;
+            const cursor = input.selectionStart;
+            const localized = toPersianDigits(input.value);
+            if (input.value !== localized) {
+                input.value = localized;
+                if (cursor !== null) input.setSelectionRange(cursor, cursor);
+            }
+        });
 
 
         /* =================================================
@@ -9464,5 +9759,210 @@ document.addEventListener(
 
         refreshDashboard();
 
+}
+
+/* =====================================================
+   AUTHENTICATION BOOTSTRAP
+===================================================== */
+let authMode = "login";
+
+function showAuthMessage(message) {
+    const box = document.getElementById("authMessage");
+    if (!box) return;
+    box.textContent = message || "خطای نامشخص رخ داد.";
+    box.hidden = false;
+}
+
+function setAuthMode(mode) {
+    authMode = mode === "register" ? "register" : "login";
+    const fullNameWrap = document.getElementById("authFullNameWrap");
+    const loginTab = document.getElementById("authLoginTab");
+    const registerTab = document.getElementById("authRegisterTab");
+    const submit = document.getElementById("authSubmitButton");
+    const password = document.getElementById("authPassword");
+    const desc = document.getElementById("authDescription");
+    const message = document.getElementById("authMessage");
+    if (fullNameWrap) fullNameWrap.classList.toggle("hidden", authMode !== "register");
+    const fullNameInput = document.getElementById("authFullName");
+    if (fullNameInput) fullNameInput.required = authMode === "register";
+    if (loginTab) {
+        loginTab.classList.toggle("active", authMode === "login");
+        loginTab.setAttribute("aria-selected", authMode === "login" ? "true" : "false");
     }
-);
+    if (registerTab) {
+        registerTab.classList.toggle("active", authMode === "register");
+        registerTab.setAttribute("aria-selected", authMode === "register" ? "true" : "false");
+    }
+    if (submit) submit.textContent = authMode === "register" ? "ساخت حساب کاربری" : "ورود به برنامه";
+    if (password) password.autocomplete = authMode === "register" ? "new-password" : "current-password";
+    if (desc) desc.textContent = authMode === "register"
+        ? "حساب جدید بسازید تا اطلاعات مالی شما جداگانه ذخیره شود."
+        : "برای دسترسی به هزینه‌ها و حساب‌های خود وارد شوید.";
+    if (message) { message.hidden = true; message.textContent = ""; }
+}
+
+async function submitAuthForm(event) {
+    event.preventDefault();
+    const submit = document.getElementById("authSubmitButton");
+    const username = document.getElementById("authUsername")?.value.trim() || "";
+    const password = document.getElementById("authPassword")?.value || "";
+    const message = document.getElementById("authMessage");
+    if (message) { message.hidden = true; message.textContent = ""; }
+    if (submit) { submit.disabled = true; submit.textContent = "در حال بررسی..."; }
+    try {
+        const response = await fetch(authMode === "register" ? "/api/auth/register" : "/api/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ username, password })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") {
+            throw new Error(data.detail || data.message || "ورود یا ثبت‌نام انجام نشد.");
+        }
+        window.location.reload();
+    } catch (error) {
+        setAuthMode(authMode);
+        showAuthMessage(error?.message || "ارتباط با سرور برقرار نشد.");
+    } finally {
+        if (submit) { submit.disabled = false; submit.textContent = authMode === "register" ? "ساخت حساب کاربری" : "ورود به برنامه"; }
+    }
+}
+
+let authBootstrapped = false;
+let authLossCheckInProgress = false;
+
+function showTemporaryAuthError() {
+    const gate = document.getElementById("authGate");
+    const shell = document.querySelector(".app-shell");
+    const title = document.getElementById("authTitle");
+    const description = document.getElementById("authDescription");
+    const tabs = document.querySelector(".auth-tabs");
+    const form = document.getElementById("authForm");
+    const note = document.querySelector(".auth-note");
+    const message = document.getElementById("authMessage");
+    const retry = document.getElementById("authRetryButton");
+    if (gate) gate.hidden = false;
+    if (shell) shell.classList.add("auth-pending");
+    if (title) title.textContent = "ارتباط موقتاً برقرار نیست";
+    if (description) description.textContent = "سرور برای بررسی نشست پاسخ نداد. این خطا به‌معنای خروج از حساب نیست؛ اتصال را بررسی کنید و دوباره تلاش کنید.";
+    if (tabs) tabs.hidden = true;
+    if (form) form.hidden = true;
+    if (note) note.hidden = true;
+    if (message) { message.hidden = true; message.textContent = ""; }
+    if (retry) retry.hidden = false;
+}
+
+function showLoginGate(messageText = "") {
+    const gate = document.getElementById("authGate");
+    const shell = document.querySelector(".app-shell");
+    const title = document.getElementById("authTitle");
+    const description = document.getElementById("authDescription");
+    const tabs = document.querySelector(".auth-tabs");
+    const form = document.getElementById("authForm");
+    const note = document.querySelector(".auth-note");
+    const retry = document.getElementById("authRetryButton");
+    if (gate) gate.hidden = false;
+    if (shell) shell.classList.add("auth-pending");
+    if (title) title.textContent = "مدیریت هزینه";
+    if (description) description.textContent = "برای دسترسی به اطلاعات خود وارد حساب شوید.";
+    if (tabs) tabs.hidden = false;
+    if (form) form.hidden = false;
+    if (note) note.hidden = false;
+    if (retry) retry.hidden = true;
+    setAuthMode("login");
+    if (messageText) showAuthMessage(messageText);
+}
+
+async function bootstrapAuthentication() {
+    registerAppServiceWorker().catch(error => console.info("PWA service worker not yet registered:", error?.message || error));
+    const gate = document.getElementById("authGate");
+    const shell = document.querySelector(".app-shell");
+    if (!authBootstrapped) {
+        document.getElementById("authLoginTab")?.addEventListener("click", () => setAuthMode("login"));
+        document.getElementById("authRegisterTab")?.addEventListener("click", () => setAuthMode("register"));
+        document.getElementById("authForm")?.addEventListener("submit", submitAuthForm);
+        document.getElementById("authRetryButton")?.addEventListener("click", () => window.location.reload());
+        authBootstrapped = true;
+    }
+    setAuthMode("login");
+
+    let authResult = null;
+    let lastFailure = null;
+    // A temporary Oracle/IIS/network error must not masquerade as a logged-out user.
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            const response = await originalFetchForAuth("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && typeof data.authenticated === "boolean") {
+                authResult = data;
+                break;
+            }
+            lastFailure = new Error(data.detail || `HTTP ${response.status}`);
+            if (response.status >= 400 && response.status < 500 && response.status !== 429) break;
+        } catch (error) {
+            lastFailure = error;
+        }
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 450 * (attempt + 1)));
+    }
+
+    if (!authResult) {
+        console.warn("Authentication status could not be confirmed:", lastFailure?.message || lastFailure);
+        showTemporaryAuthError();
+        return;
+    }
+
+    if (authResult.authenticated === true) {
+        currentAuthUser = authResult.user || null;
+        serverTrialStatus = authResult.trial || { status: "expired", remainingDays: 0 };
+        try { await loadSubscriptionStatus(); }
+        catch (error) { console.warn("Subscription status was not loaded:", error?.message || error); }
+        try {
+            const pushResponse = await originalFetchForAuth("/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
+            const pushData = await pushResponse.json().catch(() => ({}));
+            if (pushResponse.ok && pushData.status === "success") {
+                pushDailyReminderActive = Boolean(pushData.active);
+                if (pushData.reminder_time) setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, pushData.reminder_time);
+            }
+        } catch (_) {}
+        if (gate) gate.hidden = true;
+        if (shell) shell.classList.remove("auth-pending");
+        initializeExpenseApplication();
+        showPaymentReturnNotice();
+        return;
+    }
+
+    showLoginGate();
+}
+
+const originalFetchForAuth = window.fetch.bind(window);
+window.fetch = async function(input, init) {
+    const url = typeof input === "string" ? input : (input?.url || "");
+    const isApi = url.includes("/api/");
+    const requestInit = { ...(init || {}) };
+    if (isApi) {
+        if (!Object.prototype.hasOwnProperty.call(requestInit, "credentials")) requestInit.credentials = "same-origin";
+        if (!Object.prototype.hasOwnProperty.call(requestInit, "cache")) requestInit.cache = "no-store";
+    }
+    const response = await originalFetchForAuth(input, requestInit);
+    if (response.status === 401 && isApi && !url.includes("/api/auth/")) {
+        if (!authLossCheckInProgress) {
+            authLossCheckInProgress = true;
+            try {
+                const check = await originalFetchForAuth("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+                const data = await check.json().catch(() => ({}));
+                if (check.ok && data.authenticated === false) {
+                    showLoginGate("نشست ورود پایان یافته است؛ دوباره وارد شوید.");
+                }
+                // If auth status itself fails or is still authenticated, don't interrupt the user.
+            } catch (_) {
+                // A transient network error is not evidence that the user logged out.
+            } finally {
+                authLossCheckInProgress = false;
+            }
+        }
+    }
+    return response;
+};
+
+document.addEventListener("DOMContentLoaded", bootstrapAuthentication);

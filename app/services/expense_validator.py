@@ -1,5 +1,7 @@
 from datetime import date
 
+from app.services.app_clock import app_today
+
 
 MAX_AMOUNT = 1_000_000_000_000
 
@@ -61,10 +63,11 @@ def validate_expense(parsed: dict):
     if not category or not category.strip():
         errors.append("دسته‌بندی هزینه مشخص نشده است.")
 
-    elif category not in VALID_CATEGORIES:
-        errors.append(
-            f"دسته‌بندی '{category}' معتبر نیست."
-        )
+    # فهرست دسته‌ها دیگر ثابت نیست. نام دسته‌بندی پس از اعتبارسنجی اولیه
+    # در API با ردیف فعال EXP_CATEGORIES کنترل می‌شود؛ بنابراین دسته‌های جدید
+    # و اقلام پیشنهادی که از مخزن Oracle تشخیص داده می‌شوند نیز پذیرفته می‌شوند.
+    elif len(category.strip()) > 100:
+        errors.append("نام دسته‌بندی بیش از حد طولانی است.")
 
     # -------------------------
     # Date
@@ -79,7 +82,7 @@ def validate_expense(parsed: dict):
             parsed_date = date.fromisoformat(expense_date)
 
             # جلوگیری از تاریخ‌های غیرواقعی آینده
-            if parsed_date > date.today():
+            if parsed_date > app_today():
                 errors.append(
                     "تاریخ هزینه نمی‌تواند در آینده باشد."
                 )

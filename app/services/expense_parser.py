@@ -1,6 +1,7 @@
 import re
 
 from datetime import date, timedelta
+from app.services.app_clock import app_today
 
 import jdatetime
 
@@ -184,55 +185,82 @@ def parse_persian_number_words(text: str):
 # RELATIVE DATE
 # ============================================================
 
+# پشتیبانی از اعداد نوشتاری/رقمی قبل از روز، هفته، ماه یا سال.
+_NUMBER_WORD_TOKEN_PATTERN = "(?:" + "|".join(
+    re.escape(word)
+    for word in sorted(set(ONES) | set(TENS) | set(HUNDREDS), key=len, reverse=True)
+) + ")"
+_RELATIVE_COUNT_PATTERN = (
+    rf"(?:\d+|{_NUMBER_WORD_TOKEN_PATTERN}"
+    rf"(?:(?:\s+و\s+|\s+){_NUMBER_WORD_TOKEN_PATTERN})*)"
+)
+_RELATIVE_UNIT_PATTERN = r"(?:روز(?:\s+ها)?|هفته(?:\s+ها)?|ماه(?:\s+ها)?|سال(?:\s+ها)?)"
+_RELATIVE_PERIOD_PATTERN = re.compile(
+    rf"(?<!\w)(?P<count>{_RELATIVE_COUNT_PATTERN})\s*"
+    rf"(?P<unit>{_RELATIVE_UNIT_PATTERN})\s*(?P<direction>پیش|قبل)(?!\w)"
+)
+
+
+def _subtract_jalali_months(today_gregorian: date, month_count: int):
+    """کم‌کردن ماه‌های تقویم شمسی؛ روز نامعتبر به آخر ماه مقصد محدود می‌شود."""
+    today_j = jdatetime.date.fromgregorian(date=today_gregorian)
+    total_month_index = today_j.year * 12 + (today_j.month - 1) - month_count
+    target_year, target_month_zero_based = divmod(total_month_index, 12)
+    target_month = target_month_zero_based + 1
+
+    for target_day in range(min(today_j.day, 31), 0, -1):
+        try:
+            return jdatetime.date(target_year, target_month, target_day).togregorian()
+        except ValueError:
+            continue
+    raise ValueError("تاریخ نسبی قابل محاسبه نیست.")
+
+
+def _subtract_jalali_years(today_gregorian: date, year_count: int):
+    """کم‌کردن سال شمسی؛ از جمله مدیریت اسفند در سال‌های کبیسه."""
+    today_j = jdatetime.date.fromgregorian(date=today_gregorian)
+    target_year = today_j.year - year_count
+    for target_day in range(min(today_j.day, 31), 0, -1):
+        try:
+            return jdatetime.date(target_year, today_j.month, target_day).togregorian()
+        except ValueError:
+            continue
+    raise ValueError("تاریخ نسبی قابل محاسبه نیست.")
+
+
 def parse_relative_date(text: str):
+    """پشتیبانی از امروز/دیروز و عبارت‌هایی مثل چهار ماه پیش، سه هفته قبل و ده روز پیش."""
+    normalized = normalize_text(text).replace("\u200c", " ")
+    normalized = " ".join(normalized.split())
+    today = app_today()
 
-    """
-    پشتیبانی:
+    # اول عبارت‌های عددی زمان‌دار را بررسی می‌کنیم.
+    period_match = _RELATIVE_PERIOD_PATTERN.search(normalized)
+    if period_match:
+        count_text = period_match.group("count").strip()
+        count = int(count_text) if count_text.isdigit() else parse_persian_number_words(count_text)
+        if count is not None and count > 0:
+            unit = period_match.group("unit").replace(" ", "")
+            if unit.startswith("روز"):
+                return today - timedelta(days=count)
+            if unit.startswith("هفته"):
+                return today - timedelta(days=count * 7)
+            if unit.startswith("ماه"):
+                return _subtract_jalali_months(today, count)
+            if unit.startswith("سال"):
+                return _subtract_jalali_years(today, count)
 
-    امروز
-    دیروز
-    پریروز
-    فردا
-    پس فردا
-    پس‌فردا
-    """
-
-    normalized = text.replace("\u200c", " ")
-
-    normalized = " ".join(
-        normalized.split()
-    )
-
-    today = date.today()
-
-    # --------------------------------------------------------
-    # مهم:
-    # پس فردا باید قبل از فردا بررسی شود.
-    # --------------------------------------------------------
-
-    if (
-        "پس فردا" in normalized
-        or "پس‌فردا" in text
-    ):
-
+    # ترتیب مهم است؛ «پس‌فردا» باید قبل از «فردا» بررسی شود.
+    if re.search(r"(?<!\w)پس\s*فردا(?!\w)", normalized):
         return today + timedelta(days=2)
-
-    if "فردا" in normalized:
-
-        return today + timedelta(days=1)
-
-    if( "پریروز" in normalized or    "پری روز" in text):
-
+    if re.search(r"(?<!\w)پری\s*روز(?!\w)", normalized):
         return today - timedelta(days=2)
-
-    if ("دیروز" in normalized or "دی روز" in text):
-
+    if re.search(r"(?<!\w)دی\s*روز(?!\w)", normalized):
         return today - timedelta(days=1)
-
-    if( "امروز" in normalized or  "ام روز" in text):
-
+    if re.search(r"(?<!\w)ام\s*روز(?!\w)", normalized):
         return today
-
+    if re.search(r"(?<!\w)فردا(?!\w)", normalized):
+        return today + timedelta(days=1)
     return None
 
 
@@ -391,7 +419,7 @@ def parse_jalali_date(text: str):
         year = int(year_text)
     else:
         # تبدیل تاریخ امروز میلادی به سال شمسی جاری.
-        year = jdatetime.date.fromgregorian(date=date.today()).year
+        year = jdatetime.date.fromgregorian(date=app_today()).year
 
     month_name = match.group("month")
     month = JALALI_MONTHS.get(month_name)
@@ -414,6 +442,9 @@ def remove_date_expressions(text: str) -> str:
 
     for pattern in NAMED_JALALI_DATE_PATTERNS:
         result = pattern.sub(" ", result)
+
+    # تاریخ نسبی زمان‌دار را از شرح و مبلغ حذف می‌کنیم؛ مثلاً «چهار ماه پیش».
+    result = _RELATIVE_PERIOD_PATTERN.sub(" ", result)
 
     relative_patterns = [
         r"پس\s*فردا", r"پری\s*روز", r"دی\s*روز", r"فردا", r"ام\s*روز"
@@ -457,6 +488,16 @@ def _parse_numeric_amount_prefix(text: str):
     multiplier = {None: 1, "هزار": 1_000, "میلیون": 1_000_000, "میلیارد": 1_000_000_000}[scale]
     amount = number * multiplier
 
+    # In everyday Persian, "200 تومان/تومن" commonly means 200 thousand toman.
+    # Full numeric amounts such as "200000 تومان" remain unchanged.
+    rest_after_amount = value_text[match.end():]
+    if (
+        scale is None
+        and 0 < number < 1_000
+        and re.match(r"\s*(?:تومان|تومن)(?!\w)", rest_after_amount)
+    ):
+        amount *= 1_000
+
     # اگر عدد به صورت "2 میلیون و 500 هزار" نوشته شده باشد، بخش هزارم را هم لحاظ کن.
     rest = value_text[match.end():]
     if scale == "میلیون":
@@ -465,6 +506,23 @@ def _parse_numeric_amount_prefix(text: str):
             amount += int(extra.group(1).replace(",", "")) * 1_000
 
     return amount
+
+
+def _apply_toman_shorthand(text: str, amount: int | None):
+    """Interpret small unscaled values followed by تومان/تومن as thousands.
+
+    Examples: «200 تومان» -> 200000 and «200 هزار تومان» remains 200000.
+    Explicit large amounts such as «250000 تومان» are never scaled again.
+    Rial is not scaled by this rule.
+    """
+    if amount is None or amount <= 0 or amount >= 1_000:
+        return amount
+    normalized = normalize_text(text)
+    if not re.search(r"(?:تومان|تومن)(?!\w)", normalized):
+        return amount
+    if re.search(r"(?:هزار|میلیون|میلیارد)", normalized):
+        return amount
+    return amount * 1_000
 
 
 def _parse_written_amount_prefix(text: str):
@@ -499,10 +557,10 @@ def parse_amount(text: str):
         tail = label_match.group(1).strip()
         amount = _parse_numeric_amount_prefix(tail)
         if amount is not None and amount > 0:
-            return amount
+            return _apply_toman_shorthand(tail, amount)
         amount = _parse_written_amount_prefix(tail)
         if amount is not None and amount > 0:
-            return amount
+            return _apply_toman_shorthand(tail, amount)
 
     # 2) مبالغ ترکیبی؛ مانند 2 میلیون و 500 هزار.
     combo = re.search(
@@ -523,7 +581,7 @@ def parse_amount(text: str):
     if currency_numeric:
         amount = _parse_numeric_amount_prefix(currency_numeric.group(0))
         if amount is not None and amount > 0:
-            return amount
+            return _apply_toman_shorthand(currency_numeric.group(0), amount)
 
     # 4) مقدار عددی همراه «هزار»، «میلیون» یا «میلیارد».
     scaled = re.search(r"(?<!\d)(\d[\d,]*)\s*(میلیارد|میلیون|هزار)", amount_text)
@@ -545,8 +603,15 @@ def parse_amount(text: str):
             if amount is not None and amount > 0:
                 return amount
 
-        amount = parse_persian_number_words(currency_word.group(1))
+        written_prefix = currency_word.group(1)
+        amount = parse_persian_number_words(written_prefix)
         if amount is not None and amount > 0:
+            if (
+                amount < 1_000
+                and not re.search(r"(?:هزار|میلیون|میلیارد)", written_prefix)
+                and re.search(r"تومان|تومن", currency_word.group(0))
+            ):
+                amount *= 1_000
             return amount
 
     # 6) بدون برچسب/واحد: اولین عدد باقی‌مانده بعد از حذف تاریخ.
@@ -614,7 +679,9 @@ CATEGORY_KEYWORDS = {
         "اتوبوس",
         "مترو",
         "بلیط",
-        "کرایه"
+        "کرایه",
+        "وانت",
+        "باربری"
     ],
 
     "خودرو": [
@@ -712,7 +779,85 @@ CATEGORY_KEYWORDS = {
         "قطار",
         "رزرو",
         "مسافرت"
-    ]
+    ],
+"سوپرمارکت":
+	[
+   "آب معدنی",
+        "آبمیوه",
+        "نوشابه",
+        "دوغ",
+        "چای",
+        "قهوه فوری",
+        "نسکافه",
+        "شیر",
+        "خامه",
+        "ماست",
+        "پنیر",
+        "کره",
+        "کشک",
+        "تخم مرغ",
+        "نان",
+        "بیسکویت",
+        "ویفر",
+        "کیک",
+        "کلوچه",
+        "شکلات",
+        "آبنبات",
+        "پاستیل",
+        "چیپس",
+        "پفک",
+        "پاپ کورن",
+        "آجیل",
+        "تخمه",
+        "برنج",
+        "ماکارونی",
+        "رشته سوپ",
+        "روغن مایع",
+        "روغن جامد",
+        "روغن زیتون",
+        "رب گوجه فرنگی",
+        "سس مایونز",
+        "سس کچاپ",
+        "نمک",
+        "فلفل سیاه",
+        "زردچوبه",
+        "آویشن",
+        "زعفران",
+        "عدس",
+        "لوبیا قرمز",
+        "لوبیا چیتی",
+        "نخود",
+        "لپه",
+        "سویا",
+        "تن ماهی",
+        "کنسرو لوبیا",
+        "کنسرو ذرت",
+        "مربا",
+        "عسل",
+        "حلوا شکری",
+        "ارده",
+        "شیره خرما",
+        "شکر",
+        "قند",
+        "خرما",
+        "کشمش",
+        "لواشک",
+        "ترشک",
+        "خیارشور",
+        "زیتون",
+        "رشته آش",
+        "سوپ آماده",
+        "پودر ژله",
+        "پودر کیک",
+        "کنسرو نخود فرنگی",
+        "کنسرو قارچ",
+        "سرکه",
+        "آبلیمو",
+        "آبغوره",
+        "پیاز داغ آماده",
+        "بستنی"
+	]
+
 }
 
 
@@ -773,7 +918,7 @@ def parse_expense(text: str):
             "amount": None,
             "description": "",
             "category": "سایر",
-            "expense_date": date.today().isoformat()
+            "expense_date": app_today().isoformat()
         }
 
     original_text = text
@@ -805,7 +950,7 @@ def parse_expense(text: str):
         elif has_explicit_jalali_date(normalized):
             raise ValueError("تاریخ جلالی واردشده معتبر نیست. روز، ماه و سال را بررسی کنید.")
         else:
-            expense_date = date.today()
+            expense_date = app_today()
 
     # --------------------------------------------------------
     # AMOUNT
@@ -863,6 +1008,18 @@ if __name__ == "__main__":
     test_cases = [
 
         "امروز 200 هزار تومان کرایه تاکسی",
+
+        "چهارماه پیش ۲۰۰ تومان پول وانت دادم",
+
+        "چهار ماه پیش دویست تومان پول وانت دادم",
+
+        "سه هفته قبل ۱۵۰ هزار تومان کرایه تاکسی",
+
+        "ده روز پیش 250000 تومان خرید",
+
+        "دیروز 200 تومان تاکسی",
+
+        "دیروز دویست تومان تاکسی",
 
         "دیروز 350 هزار تومان رستوران",
 

@@ -4047,10 +4047,10 @@ html[data-theme="dark"] .report-jalali-picker-footer button {
 .account-balance-block { margin-top: 17px; padding: 13px 14px; border-radius: 13px; background: #f6f9fa; }
 .account-balance-block span { display: block; font-size: 10px; color: #7e8b90; margin-bottom: 4px; }
 .account-balance-block strong { display: block; font-size: 21px; font-weight: 900; overflow-wrap: anywhere; }
-.account-card-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 14px 1px 12px; }
+.account-card-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 8px; padding: 14px 1px 12px; }
 .account-card-stats div { min-width: 0; }
-.account-card-stats span { display: block; color: #879197; font-size: 9px; margin-bottom: 6px; }
-.account-card-stats strong { display: block; font-size: 10px; line-height: 1.6; font-weight: 800; overflow-wrap: anywhere; }
+.account-card-stats span { display: block; color: #77868d; font-size: 10px; line-height: 1.6; margin-bottom: 5px; }
+.account-card-stats strong { display: block; font-size: 11px; line-height: 1.7; font-weight: 800; overflow-wrap: anywhere; }
 .account-transactions-button { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 1px solid #e4ebee; border-radius: 12px; padding: 11px 13px; background: #fff; color: #354c55; font: inherit; font-size: 11px; font-weight: 800; cursor: pointer; }
 .account-transactions-button span { font-size: 18px; }
 .accounts-empty-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; border: 1px dashed #d5dfe3; border-radius: 18px; padding: 25px 15px; color: #69777d; }
@@ -4160,3 +4160,513 @@ html[data-theme="dark"] #accountTransferBalanceHint.error { color: #ffaaa1; }
     .accounts-page-actions { width: 100%; }
     .accounts-page-actions > button { flex: 1; }
 }
+
+
+/* Clear account breakdown: transfer effects are displayed separately from income/expenses. */
+.account-card-stats .account-stat-positive { color: #247a57; }
+.account-card-stats .account-stat-negative { color: #b3261e; }
+html[data-theme="dark"] .account-card-stats .account-stat-positive { color: #91d8b3; }
+html[data-theme="dark"] .account-card-stats .account-stat-negative { color: #ffb4ab; }
+
+
+/* =====================================================
+   SMART SPENDING INSIGHTS
+===================================================== */
+.spending-insights-section {
+    position: relative;
+    border: 1px solid #f0ddb5;
+    background: linear-gradient(135deg, #fffdf7 0%, #fff8e9 100%);
+    overflow: hidden;
+}
+.spending-insights-section[hidden] {
+    display: none !important;
+}
+.spending-insights-header {
+    align-items: flex-start;
+    padding-left: 30px;
+}
+.spending-insights-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #fff0c8;
+    font-size: 20px;
+}
+.spending-insights-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.spending-insight-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 13px;
+    border-radius: 15px;
+    border: 1px solid #f1e3c5;
+    background: rgba(255, 255, 255, 0.82);
+    min-width: 0;
+}
+.spending-insight-item-icon {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #fff4da;
+    font-size: 19px;
+}
+.spending-insight-content {
+    min-width: 0;
+    flex: 1;
+}
+.spending-insight-title-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.spending-insight-title-row strong {
+    color: #5d4317;
+    font-size: 13px;
+    line-height: 1.8;
+}
+.spending-insight-change {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-weight: 800;
+    color: #a85a21;
+    background: #fff0d9;
+    border-radius: 8px;
+    padding: 4px 7px;
+}
+.spending-insight-content p {
+    font-size: 12px;
+    line-height: 1.9;
+    color: #655d50;
+    margin: 0 0 9px;
+}
+.spending-insight-metrics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px 14px;
+    font-size: 10px;
+    color: #81786b;
+}
+.spending-insight-metrics b {
+    color: #34312c;
+    font-weight: 800;
+}
+.spending-insights-dismiss {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    width: 27px;
+    height: 27px;
+    border: 0;
+    border-radius: 8px;
+    background: rgba(113, 91, 50, 0.09);
+    color: #6a5936;
+    font-size: 21px;
+    line-height: 1;
+    cursor: pointer;
+}
+html[data-theme="dark"] .spending-insights-section {
+    background: #272720;
+    border-color: #5b4a27;
+}
+html[data-theme="dark"] .spending-insight-item {
+    background: #22251f;
+    border-color: #514329;
+}
+html[data-theme="dark"] .spending-insights-icon,
+html[data-theme="dark"] .spending-insight-item-icon,
+html[data-theme="dark"] .spending-insight-change {
+    background: #40351e;
+    color: #f0cd80;
+}
+html[data-theme="dark"] .spending-insight-title-row strong,
+html[data-theme="dark"] .spending-insight-metrics b {
+    color: #f0e3c6;
+}
+html[data-theme="dark"] .spending-insight-content p,
+html[data-theme="dark"] .spending-insight-metrics {
+    color: #c3b89f;
+}
+html[data-theme="dark"] .spending-insights-dismiss {
+    background: #383225;
+    color: #f0e3c6;
+}
+@media (max-width: 380px) {
+    .spending-insight-title-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .spending-insight-metrics {
+        flex-direction: column;
+        gap: 4px;
+    }
+}
+
+
+/* =====================================================
+   AUTH GATE + DEFINITIVE PERSIAN FORM TYPOGRAPHY
+===================================================== */
+html, body, body button, body input, body select, body textarea {
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif !important;
+}
+#editExpenseModal,
+#editExpenseModal *,
+#confirmationModal,
+#confirmationModal *,
+#deleteExpenseModal,
+#deleteExpenseModal *,
+#accountModal,
+#accountModal *,
+#accountCreditModal,
+#accountCreditModal *,
+#accountTransferModal,
+#accountTransferModal *,
+#settingsModal,
+#settingsModal * {
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif !important;
+}
+#editExpenseModal input,
+#editExpenseModal select,
+#editExpenseModal button,
+#editExpenseModal textarea {
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif !important;
+    font-size: 14px;
+}
+#editExpenseModal input[type="date"],
+#editExpenseModal input[type="number"],
+#editExpenseModal input[type="text"] {
+    font-variant-numeric: normal;
+    font-feature-settings: "kern" 1;
+}
+.app-shell.auth-pending { visibility: hidden !important; }
+.auth-gate {
+    position: fixed; inset: 0; z-index: 5000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; background: rgba(242, 245, 247, .98);
+    direction: rtl; overflow-y: auto;
+}
+.auth-gate[hidden] { display: none !important; }
+.auth-card {
+    width: 100%; max-width: 410px; padding: 28px 24px 22px;
+    border: 1px solid #e8edf0; border-radius: 24px; background: #fff;
+    box-shadow: 0 18px 50px rgba(25, 43, 50, .12); color: #263238;
+}
+.auth-brand-icon {
+    width: 58px; height: 58px; margin: 0 auto 12px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 18px; background: #edf3f4; font-size: 29px;
+}
+.auth-card h1 { margin: 0; text-align: center; font-size: 23px; font-weight: 900; }
+.auth-description { margin: 8px 0 22px; text-align: center; color: #718089; font-size: 12px; line-height: 1.9; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 18px; border-radius: 14px; background: #f2f5f6; }
+.auth-tab { min-height: 42px; border: 0; border-radius: 10px; background: transparent; color: #62727a; font: inherit; font-size: 13px; font-weight: 800; cursor: pointer; }
+.auth-tab.active { background: #263238; color: #fff; box-shadow: 0 3px 9px rgba(38,50,56,.14); }
+.auth-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+.auth-field label { color: #52636b; font-size: 12px; font-weight: 700; }
+.auth-field input { width: 100%; min-height: 48px; border: 1px solid #dce3e6; border-radius: 12px; background: #fff; color: #263238; padding: 0 13px; outline: none; direction: rtl; text-align: right; font: inherit; font-size: 14px; }
+.auth-field input:focus { border-color: #526f78; box-shadow: 0 0 0 3px rgba(82,111,120,.10); }
+.auth-submit { margin-top: 5px; min-height: 49px; }
+.auth-message { margin: 4px 0 12px; padding: 10px 12px; border-radius: 10px; background: #fff0ef; color: #a12f27; font-size: 12px; line-height: 1.8; }
+.auth-message[hidden] { display: none !important; }
+.auth-note { margin: 17px 0 0; text-align: center; color: #87949a; font-size: 10px; }
+.auth-logout-button { border: 1px solid #e0e6e8; border-radius: 11px; padding: 8px 10px; background: #fff; color: #586971; font: inherit; font-size: 11px; cursor: pointer; }
+html[data-theme="dark"] .auth-gate { background: rgba(18, 22, 25, .98); }
+html[data-theme="dark"] .auth-card { background: #1b2024; border-color: #333b41; color: #f1f3f4; }
+html[data-theme="dark"] .auth-description, html[data-theme="dark"] .auth-note, html[data-theme="dark"] .auth-field label { color: #aab2b8; }
+html[data-theme="dark"] .auth-field input { background: #20262b; color: #f1f3f4; border-color: #3b444b; }
+html[data-theme="dark"] .auth-tabs { background: #20262b; }
+html[data-theme="dark"] .auth-logout-button { background: #252c31; color: #e8eaed; border-color: #333b41; }
+@media (max-width: 420px) { .auth-card { padding: 24px 18px 20px; } }
+
+
+/* =====================================================
+   FINAL UI FIXES — HEADER, PERSIAN INPUTS, SETTINGS
+===================================================== */
+.header-actions { display:flex; align-items:center; justify-content:flex-start; gap:9px; flex:0 0 auto; }
+.top-header { gap:12px; }
+.subscription-icon-button { display:inline-flex !important; align-items:center; justify-content:center; gap:8px; width:auto !important; min-width:142px; min-height:44px; height:44px; padding:0 13px !important; border:0; border-radius:13px !important; background:#263238 !important; color:#fff !important; box-shadow:0 5px 14px rgba(38,50,56,.16); font-family:"Vazirmatn",Tahoma,Arial,sans-serif !important; font-size:12px !important; font-weight:800; cursor:pointer; white-space:nowrap; }
+.subscription-icon-button .subscription-icon { font-size:17px; line-height:1; }
+.subscription-button-label { display:inline-block; font-family:"Vazirmatn",Tahoma,Arial,sans-serif !important; font-size:12px; line-height:1.3; }
+.subscription-icon-button.warning { background:#a66a08 !important; }
+.subscription-icon-button.expired { background:#9c3b32 !important; }
+.subscription-icon-button.active { background:#267354 !important; }
+.auth-logout-button { display:grid !important; place-items:center; flex:0 0 44px; width:44px !important; min-width:44px; height:44px !important; padding:0 !important; border-radius:13px !important; font-size:0 !important; }
+.auth-logout-button svg { width:21px; height:21px; display:block; }
+.visually-hidden { position:absolute !important; width:1px !important; height:1px !important; padding:0 !important; margin:-1px !important; overflow:hidden !important; clip:rect(0,0,0,0) !important; white-space:nowrap !important; border:0 !important; }
+#expenseText, #editAmount, #editDescription, #editCategory, #editExpenseAccount, #editDateJalali, #reportFromDateJalali, #reportToDateJalali, #accountInitialBalanceInput, #accountCreditAmountInput, #accountTransferAmountInput, .edit-form input, .edit-form select, .report-jalali-date-input, .report-jalali-picker, .report-jalali-picker button, .settings-card, .settings-card button, .settings-card input, .settings-card select { font-family:"Vazirmatn",Tahoma,Arial,sans-serif !important; }
+#editAmount, #accountInitialBalanceInput, #accountCreditAmountInput, #accountTransferAmountInput { direction:rtl; text-align:right; font-variant-numeric:normal; }
+.report-jalali-picker-title, .report-jalali-day { font-family:"Vazirmatn",Tahoma,Arial,sans-serif !important; font-variant-numeric:normal !important; }
+.push-reminder-status { padding:11px 12px; margin:8px 0; border-radius:12px; background:#f1f6f4; color:#376b58; border:1px solid #d8e8e0; font-size:12px; line-height:1.9; }
+.push-reminder-note { line-height:1.9; font-size:11px; }
+.notification-settings-form .primary-button, .notification-settings-form .secondary-button { margin-top:5px; }
+html[data-theme="dark"] .push-reminder-status { background:#1d332a; color:#bce6d3; border-color:#315747; }
+@media (max-width:380px) { .top-header { padding-inline:12px; } .header-actions { gap:6px; } .subscription-icon-button { min-width:122px; padding:0 9px !important; } .subscription-button-label { font-size:11px; } .app-title { font-size:20px; } }
+
+/* =====================================================
+   CATEGORY CATALOG PREPARATION STATUS
+===================================================== */
+.category-catalog-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 12px;
+    padding: 12px 13px;
+    border: 1px solid #d9e5e8;
+    border-radius: 12px;
+    background: #f3f8f8;
+    color: #38565f;
+    font-family: "Vazirmatn", Tahoma, Arial, sans-serif !important;
+    font-size: 12px;
+    line-height: 1.9;
+    text-align: right;
+}
+.category-catalog-progress.hidden { display: none !important; }
+.category-catalog-spinner {
+    width: 19px;
+    height: 19px;
+    flex: 0 0 19px;
+    border: 2px solid #c7d8dd;
+    border-top-color: #385f6b;
+    border-radius: 50%;
+    animation: category-catalog-spin .75s linear infinite;
+}
+@keyframes category-catalog-spin { to { transform: rotate(360deg); } }
+html[data-theme="dark"] .category-catalog-progress {
+    background: #202b2f;
+    color: #d2e4e8;
+    border-color: #39494f;
+}
+html[data-theme="dark"] .category-catalog-spinner {
+    border-color: #45585e;
+    border-top-color: #b4d7e0;
+}
+
+/* Category catalog backfill action */
+.category-management-footer-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 9px;
+}
+.category-management-footer-actions .primary-button,
+.category-management-footer-actions .secondary-button {
+    width: 100%;
+    min-height: 43px;
+    font-family: inherit;
+}
+.category-catalog-backfill-status {
+    color: #68757d;
+    font-size: 11px;
+    line-height: 1.8;
+}
+
+/* Scheduled expense reports */
+.report-schedule-section {
+    margin-bottom: 90px;
+}
+.report-schedule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.report-schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 11px;
+}
+.report-schedule-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+.report-schedule-destination-field {
+    grid-column: 1 / -1;
+}
+.report-schedule-field label {
+    color: #68757d;
+    font-size: 11px;
+}
+.report-schedule-field input,
+.report-schedule-field select {
+    width: 100%;
+    min-width: 0;
+    min-height: 43px;
+    padding: 0 10px;
+    border: 1px solid #dfe4e7;
+    border-radius: 11px;
+    background: #fff;
+    color: #263238;
+    font-family: inherit;
+    font-size: 12px;
+}
+.report-schedule-field input[type="time"] {
+    direction: ltr;
+    text-align: center;
+}
+.report-schedule-field input:focus,
+.report-schedule-field select:focus {
+    outline: none;
+    border-color: #607d8b;
+    box-shadow: 0 0 0 3px rgba(96, 125, 139, .12);
+}
+.report-schedule-help {
+    margin: 0;
+    color: #7d898f;
+    font-size: 10px;
+    line-height: 1.9;
+}
+.report-schedule-status {
+    min-height: 18px;
+    color: #68757d;
+    font-size: 11px;
+    line-height: 1.8;
+    overflow-wrap: anywhere;
+}
+.report-schedule-status.error {
+    color: #c62828;
+}
+.report-schedule-list-wrap {
+    margin-top: 17px;
+    border-top: 1px solid #edf0f2;
+    padding-top: 15px;
+}
+.report-schedule-list-title {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #263238;
+}
+.report-schedule-list {
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+}
+.report-schedule-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #e7ecef;
+    border-radius: 13px;
+    background: #fafbfc;
+}
+.report-schedule-item.inactive {
+    opacity: .62;
+}
+.report-schedule-item-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.report-schedule-item-main strong,
+.report-schedule-item-main span,
+.report-schedule-item-main small {
+    overflow-wrap: anywhere;
+}
+.report-schedule-item-main strong {
+    color: #263238;
+    font-size: 11px;
+}
+.report-schedule-item-main span {
+    color: #53616a;
+    font-size: 11px;
+}
+.report-schedule-item-main small {
+    color: #7d898f;
+    font-size: 10px;
+    line-height: 1.7;
+}
+.report-schedule-remove {
+    flex: 0 0 auto;
+    border: 1px solid #e1e7ea;
+    border-radius: 9px;
+    padding: 7px 9px;
+    background: #fff;
+    color: #b3261e;
+    font-family: inherit;
+    font-size: 10px;
+    cursor: pointer;
+}
+.report-schedule-empty {
+    padding: 14px 10px;
+    color: #7d898f;
+    border: 1px dashed #dce3e7;
+    border-radius: 12px;
+    text-align: center;
+    font-size: 11px;
+    line-height: 1.8;
+}
+html[data-theme="dark"] .report-schedule-field label,
+html[data-theme="dark"] .report-schedule-help,
+html[data-theme="dark"] .report-schedule-status,
+html[data-theme="dark"] .report-schedule-item-main small,
+html[data-theme="dark"] .report-schedule-empty,
+html[data-theme="dark"] .category-catalog-backfill-status {
+    color: #aab2b8;
+}
+html[data-theme="dark"] .report-schedule-field input,
+html[data-theme="dark"] .report-schedule-field select,
+html[data-theme="dark"] .report-schedule-item,
+html[data-theme="dark"] .report-schedule-remove {
+    background: #20262b;
+    border-color: #3b444b;
+    color: #e8eaed;
+}
+html[data-theme="dark"] .report-schedule-list-title,
+html[data-theme="dark"] .report-schedule-item-main strong,
+html[data-theme="dark"] .report-schedule-item-main span {
+    color: #e8eaed;
+}
+@media (max-width: 380px) {
+    .report-schedule-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .report-schedule-destination-field {
+        grid-column: auto;
+    }
+}
+
+
+/* =====================================================
+   LIVE WALLET SUMMARY + USAGE LEVEL
+===================================================== */
+.app-brand { display:flex; flex-direction:column; align-items:flex-start; gap:7px; min-width:0; }
+.usage-level-badge { display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:3px 10px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:800; line-height:1.4; white-space:nowrap; }
+.usage-level-badge.bronze { color:#845b42; background:#f3e4d8; border-color:#e7d1c0; }
+.usage-level-badge.silver { color:#4a5962; background:#e8edf0; border-color:#d4dde2; }
+.usage-level-badge.gold { color:#805b00; background:#fff1c2; border-color:#f2dc8b; }
+.usage-level-badge.platinum { color:#155e75; background:#dff6fb; border-color:#a9e6f2; }
+.home-wallet-balances { margin-top:18px; padding-top:15px; border-top:1px solid rgba(255,255,255,.18); }
+.home-wallet-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; color:rgba(255,255,255,.78); font-size:11px; margin-bottom:9px; }
+.home-wallet-total { color:#fff; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.home-wallet-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.home-wallet-balance-item { display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; gap:2px 6px; min-width:0; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.08); border-radius:12px; padding:8px 9px; }
+.home-wallet-account-icon { grid-row:span 2; display:grid; place-items:center; width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.13); font-size:13px; }
+.home-wallet-account-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.72); font-size:10px; }
+.home-wallet-balance-item strong { min-width:0; overflow-wrap:anywhere; color:#fff; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
+.home-wallet-balance-item.negative strong { color:#ffc5c5; }
+.home-wallet-empty, .home-wallet-loading { grid-column:1/-1; padding:8px 10px; color:rgba(255,255,255,.72); font-size:11px; line-height:1.8; }
+.auth-retry { margin-top:14px; }
+.auth-tabs[hidden], #authForm[hidden], .auth-note[hidden], #authRetryButton[hidden] { display:none !important; }
+html[data-theme="dark"] .usage-level-badge.bronze { color:#f5d6c2; background:#4c3428; border-color:#684b3d; }
+html[data-theme="dark"] .usage-level-badge.silver { color:#dce5e9; background:#333e44; border-color:#4c5a62; }
+html[data-theme="dark"] .usage-level-badge.gold { color:#ffe9a3; background:#51431f; border-color:#78642a; }
+html[data-theme="dark"] .usage-level-badge.platinum { color:#b6f1ff; background:#1b3d47; border-color:#2e626f; }
+@media (max-width:360px) { .home-wallet-items { grid-template-columns:minmax(0,1fr); } .home-wallet-balance-item { grid-template-columns:22px minmax(0,1fr) auto; } .home-wallet-account-icon { grid-row:auto; } .home-wallet-account-name { white-space:normal; } }

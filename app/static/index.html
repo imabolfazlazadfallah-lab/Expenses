@@ -12,9 +12,16 @@
 
     <title>مدیریت هزینه</title>
 
+    <link rel="manifest" href="/manifest.webmanifest?v=20261014-feature-fix-v3">
+    <meta name="theme-color" content="#263238">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
     <link
         rel="stylesheet"
-        href="/static/style.css?v=20261011-account-transfers"
+        href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.min.css"
+    >
+    <link
+        rel="stylesheet"
+        href="/static/style.css?v=20261020-dashboard-wallet-tier-telegram-xlsx-v2"
     >
 
 </head>
@@ -22,37 +29,71 @@
 
 <body>
 
+<div id="authGate" class="auth-gate" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-card">
+        <div class="auth-brand-icon">💰</div>
+        <h1 id="authTitle">مدیریت هزینه</h1>
+        <p id="authDescription" class="auth-description">برای دسترسی به اطلاعات خود وارد حساب شوید.</p>
+        <div class="auth-tabs" role="tablist" aria-label="نوع ورود">
+            <button type="button" id="authLoginTab" class="auth-tab active" role="tab" aria-selected="true">ورود</button>
+            <button type="button" id="authRegisterTab" class="auth-tab" role="tab" aria-selected="false">ثبت‌نام</button>
+        </div>
+        <form id="authForm" autocomplete="on">
 
-<div class="app-shell">
+
+            <div class="auth-field">
+                <label for="authUsername">نام کاربری</label>
+                <input id="authUsername" name="username" type="text" minlength="3" maxlength="100" autocomplete="username" required placeholder="نام کاربری">
+            </div>
+            <div class="auth-field">
+                <label for="authPassword">رمز عبور</label>
+                <input id="authPassword" name="password" type="password" minlength="8" maxlength="256" autocomplete="current-password" required placeholder="حداقل ۸ نویسه">
+            </div>
+            <div id="authMessage" class="auth-message" role="alert" hidden></div>
+            <button id="authSubmitButton" type="submit" class="primary-button full-width auth-submit">ورود به برنامه</button>
+        </form>
+        <button id="authRetryButton" type="button" class="secondary-button full-width auth-retry" hidden>تلاش دوباره برای اتصال</button>
+        <p class="auth-note">اگر قبلاً اطلاعات ثبت کرده‌اید، ابتدا ورود همان حساب را فعال کنید؛ ثبت‌نام حساب تازه‌ای می‌سازد.</p>
+    </div>
+</div>
+
+<div class="app-shell auth-pending">
 
 
     <!-- ================= HEADER ================= -->
 
     <header class="top-header">
-
-        <div>
-
-            <div class="app-title" id="appTitle">
-                مدیریت هزینه
-            </div>
-
+        <div class="app-brand">
+            <div class="app-title" id="appTitle">مدیریت هزینه</div>
+            <span class="usage-level-badge bronze" id="usageLevelBadge" title="سطح استفاده از برنامه">سطح برنز</span>
         </div>
 
+        <div class="header-actions" role="group" aria-label="اشتراک و حساب کاربری">
+            <button
+                class="subscription-icon-button trial"
+                id="subscriptionStatusButton"
+                type="button"
+                title="خرید یا تمدید اشتراک"
+                aria-label="خرید یا تمدید اشتراک"
+            >
+                <span class="subscription-icon" aria-hidden="true">👑</span>
+                <span class="subscription-button-label">تمدید اشتراک</span>
+            </button>
 
-        <button
-            class="subscription-icon-button trial"
-            id="subscriptionStatusButton"
-            type="button"
-            title="اشتراک آزمایشی"
-            aria-label="وضعیت اشتراک"
-        >
-
-            <span class="subscription-icon">
-                👑
-            </span>
-
-        </button>
-
+            <button
+                class="auth-logout-button"
+                id="logoutButton"
+                type="button"
+                title="خروج از حساب"
+                aria-label="خروج از حساب"
+            >
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M10 4H5.5A1.5 1.5 0 0 0 4 5.5v13A1.5 1.5 0 0 0 5.5 20H10" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+                    <path d="M13 8l4 4-4 4M8 12h9" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="visually-hidden">خروج از حساب</span>
+            </button>
+        </div>
     </header>
 
 
@@ -86,8 +127,14 @@
         </div>
 
 
-        <div class="hero-subtitle">
-            مجموع هزینه‌های امروز
+        <div class="home-wallet-balances" id="homeWalletBalances" aria-live="polite">
+            <div class="home-wallet-heading">
+                <span>مانده کیف پول و حساب‌ها</span>
+                <span class="home-wallet-total" id="homeWalletTotal">در حال دریافت...</span>
+            </div>
+            <div class="home-wallet-items" id="homeWalletBalanceItems" style="display: none;">
+                <span class="home-wallet-loading">در حال دریافت موجودی حساب‌ها...</span>
+            </div>
         </div>
 
     </section>
@@ -241,57 +288,16 @@
     </section>
 
 
-    <!-- ================= CATEGORIES ================= -->
-
-    <section class="dashboard-section">
-
-        <div class="section-header">
-
+    <!-- ================= SMART SPENDING INSIGHTS ================= -->
+    <section class="dashboard-section spending-insights-section" id="spendingInsightsSection" hidden>
+        <div class="section-header spending-insights-header">
             <div>
-
-                <div class="section-title">
-                    دسته‌بندی هزینه‌ها
-                </div>
-
-
-                <div class="section-subtitle">
-                    بیشترین هزینه‌ها
-                </div>
-
+                <div class="section-title">بینش هوشمند هزینه‌ها</div>
+                <div class="section-subtitle" id="spendingInsightsPeriod">مقایسه با همین بازه ماه قبل</div>
             </div>
-
+            <div class="spending-insights-icon" aria-hidden="true">💡</div>
         </div>
-
-
-        <div
-            class="category-list"
-            id="categoryList"
-        >
-
-            <div class="loading">
-                در حال دریافت اطلاعات...
-            </div>
-
-        </div>
-
-
-        <!-- ================= CATEGORY CHART ================= -->
-
-        <div class="category-chart-wrapper">
-
-            <div class="category-chart-title">
-                توزیع هزینه‌ها
-            </div>
-
-
-            <div class="category-chart-container">
-
-                <canvas id="categoryChart"></canvas>
-
-            </div>
-
-        </div>
-
+        <div id="spendingInsightsList" class="spending-insights-list"></div>
     </section>
 
 
@@ -372,7 +378,7 @@
                             autocomplete="off"
                             inputmode="text"
                             spellcheck="false"
-                            placeholder="مثلاً 1405/07/09"
+                            placeholder="مثلاً ۱۴۰۵/۰۷/۰۹"
                             aria-label="تاریخ شروع گزارش به شمسی"
                             aria-haspopup="dialog"
                             aria-controls="reportJalaliPicker"
@@ -391,7 +397,7 @@
                             autocomplete="off"
                             inputmode="text"
                             spellcheck="false"
-                            placeholder="مثلاً 1405/07/18"
+                            placeholder="مثلاً ۱۴۰۵/۰۷/۱۸"
                             aria-label="تاریخ پایان گزارش به شمسی"
                             aria-haspopup="dialog"
                             aria-controls="reportJalaliPicker"
@@ -466,8 +472,62 @@
             <div class="report-category-chart-container">
                 <canvas id="reportCategoryChart" aria-label="نمودار سهم دسته‌بندی هزینه‌ها"></canvas>
             </div>
-            <div id="reportCategoryBreakdown" class="report-category-breakdown">
-                <div class="loading">در انتظار دریافت گزارش...</div>
+        </section>
+
+        <section class="dashboard-section report-schedule-section" aria-labelledby="reportScheduleTitle">
+            <div class="section-header">
+                <div>
+                    <div class="section-title" id="reportScheduleTitle">ارسال زمان‌بندی‌شده گزارش</div>
+                    <div class="section-subtitle">گزارش کامل هزینه‌های هفته یا ماه گذشته به مقصد انتخابی ارسال می‌شود.</div>
+                </div>
+            </div>
+
+            <form id="reportScheduleForm" class="report-schedule-form">
+                <div class="report-schedule-grid">
+                    <div class="report-schedule-field">
+                        <label for="reportScheduleFrequency">دوره ارسال</label>
+                        <select id="reportScheduleFrequency" required>
+                            <option value="WEEKLY">هفتگی</option>
+                            <option value="MONTHLY">ماهانه</option>
+                        </select>
+                    </div>
+                    <div class="report-schedule-field">
+                        <label for="reportScheduleChannel">روش ارسال</label>
+                        <select id="reportScheduleChannel" required>
+                            <option value="TELEGRAM" selected>تلگرام · فایل Excel</option>
+                        </select>
+                    </div>
+                    <div class="report-schedule-field" id="reportScheduleDayField">
+                        <label for="reportScheduleDay" id="reportScheduleDayLabel">روز هفته</label>
+                        <select id="reportScheduleDay" required>
+                            <option value="0">شنبه</option>
+                            <option value="1">یکشنبه</option>
+                            <option value="2">دوشنبه</option>
+                            <option value="3">سه‌شنبه</option>
+                            <option value="4">چهارشنبه</option>
+                            <option value="5">پنجشنبه</option>
+                            <option value="6">جمعه</option>
+                        </select>
+                    </div>
+                    <div class="report-schedule-field">
+                        <label for="reportScheduleTime">ساعت ارسال (تهران)</label>
+                        <input id="reportScheduleTime" type="time" value="09:00" required>
+                    </div>
+                    <div class="report-schedule-field report-schedule-destination-field">
+                        <label for="reportScheduleDestination" id="reportScheduleDestinationLabel">شناسه چت تلگرام</label>
+                        <input id="reportScheduleDestination" type="text" maxlength="64" required placeholder="مثلاً 123456789 یا -100123456789" autocomplete="off">
+                    </div>
+                </div>
+                <p class="report-schedule-help" id="reportScheduleHelp">گزارش زیبا و قالب‌بندی‌شده Excel به تلگرام ارسال می‌شود. ابتدا ربات را Start کنید و Chat ID عددی یا شناسه کانال را وارد کنید؛ توکن ربات باید روی سرور تنظیم شده باشد.</p>
+                <button type="submit" class="primary-button full-width" id="saveReportScheduleButton">ذخیره زمان‌بندی</button>
+                <div id="reportScheduleStatus" class="report-schedule-status" role="status" aria-live="polite"></div>
+            </form>
+
+            <div class="report-schedule-list-wrap">
+                <div class="report-schedule-list-title">زمان‌بندی‌های من</div>
+                <div id="reportScheduleList" class="report-schedule-list">
+                    <div class="loading">در انتظار دریافت زمان‌بندی‌ها...</div>
+                </div>
             </div>
         </section>
 
@@ -891,12 +951,7 @@
             </label>
 
 
-            <input
-                type="number"
-                id="editAmount"
-                min="1"
-                placeholder="مبلغ به تومان"
-            >
+            <input type="text" id="editAmount" inputmode="numeric" autocomplete="off" dir="rtl" placeholder="مبلغ به تومان">
 
 
             <label for="editDescription">
@@ -943,7 +998,7 @@
                     autocomplete="off"
                     inputmode="text"
                     spellcheck="false"
-                    placeholder="مثلاً 1405/07/19"
+                    placeholder="مثلاً ۱۴۰۵/۰۷/۱۹"
                     aria-label="تاریخ هزینه به شمسی"
                     aria-haspopup="dialog"
                     aria-controls="reportJalaliPicker"
@@ -1095,7 +1150,7 @@
      ===================================================== -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/app.js?v=20261011-account-transfers"></script>
+<script src="/static/app.js?v=20261020-dashboard-wallet-tier-telegram-xlsx-v2"></script>
 
 
 </body>
