@@ -4644,29 +4644,27 @@ html[data-theme="dark"] .report-schedule-item-main span {
 }
 
 
-/* =====================================================
-   LIVE WALLET SUMMARY + USAGE LEVEL
-===================================================== */
-.app-brand { display:flex; flex-direction:column; align-items:flex-start; gap:7px; min-width:0; }
-.usage-level-badge { display:inline-flex; align-items:center; gap:5px; min-height:23px; padding:3px 10px; border:1px solid transparent; border-radius:999px; font-size:10px; font-weight:800; line-height:1.4; white-space:nowrap; }
-.usage-level-badge.bronze { color:#845b42; background:#f3e4d8; border-color:#e7d1c0; }
-.usage-level-badge.silver { color:#4a5962; background:#e8edf0; border-color:#d4dde2; }
-.usage-level-badge.gold { color:#805b00; background:#fff1c2; border-color:#f2dc8b; }
-.usage-level-badge.platinum { color:#155e75; background:#dff6fb; border-color:#a9e6f2; }
-.home-wallet-balances { margin-top:18px; padding-top:15px; border-top:1px solid rgba(255,255,255,.18); }
-.home-wallet-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; color:rgba(255,255,255,.78); font-size:11px; margin-bottom:9px; }
-.home-wallet-total { color:#fff; font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
-.home-wallet-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
-.home-wallet-balance-item { display:grid; grid-template-columns:22px minmax(0,1fr); align-items:center; gap:2px 6px; min-width:0; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.08); border-radius:12px; padding:8px 9px; }
-.home-wallet-account-icon { grid-row:span 2; display:grid; place-items:center; width:22px; height:22px; border-radius:7px; background:rgba(255,255,255,.13); font-size:13px; }
-.home-wallet-account-name { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:rgba(255,255,255,.72); font-size:10px; }
-.home-wallet-balance-item strong { min-width:0; overflow-wrap:anywhere; color:#fff; font-size:11px; font-weight:800; font-variant-numeric:tabular-nums; }
-.home-wallet-balance-item.negative strong { color:#ffc5c5; }
-.home-wallet-empty, .home-wallet-loading { grid-column:1/-1; padding:8px 10px; color:rgba(255,255,255,.72); font-size:11px; line-height:1.8; }
-.auth-retry { margin-top:14px; }
-.auth-tabs[hidden], #authForm[hidden], .auth-note[hidden], #authRetryButton[hidden] { display:none !important; }
-html[data-theme="dark"] .usage-level-badge.bronze { color:#f5d6c2; background:#4c3428; border-color:#684b3d; }
-html[data-theme="dark"] .usage-level-badge.silver { color:#dce5e9; background:#333e44; border-color:#4c5a62; }
-html[data-theme="dark"] .usage-level-badge.gold { color:#ffe9a3; background:#51431f; border-color:#78642a; }
-html[data-theme="dark"] .usage-level-badge.platinum { color:#b6f1ff; background:#1b3d47; border-color:#2e626f; }
-@media (max-width:360px) { .home-wallet-items { grid-template-columns:minmax(0,1fr); } .home-wallet-balance-item { grid-template-columns:22px minmax(0,1fr) auto; } .home-wallet-account-icon { grid-row:auto; } .home-wallet-account-name { white-space:normal; } }
+
+/* Patch 2026-10-21: keep the home screen compact and show a live wallet total. */
+.hero-wallet-balance {
+    margin-top: 12px;
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    margin-inline-start: auto;
+    padding: 7px 12px;
+    border-radius: 12px;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.28);
+    color: inherit;
+    font-size: .88rem;
+    font-weight: 700;
+    text-align: left;
+    direction: rtl;
+}
+#expenseList {
+    max-height: 430px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}

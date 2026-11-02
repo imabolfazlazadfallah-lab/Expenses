@@ -17,19 +17,21 @@ from app.api.report_schedules import router as report_schedules_router
 from app.api.payments import router as payments_router
 from app.auth_security import SESSION_SECRET_KEY
 
-
-app = FastAPI(title="Expense Tracker")
+# IIS maps /expense/* to the corresponding path on the local FastAPI server.
+app = FastAPI(title="Expense Tracker", root_path="/expense")
 
 
 @app.middleware("http")
 async def prevent_api_cache(request: Request, call_next):
     """Financial data and account balances must always be fetched live."""
     response = await call_next(request)
-    if request.url.path.startswith("/api/"):
+    # IIS strips the /expense prefix before forwarding; FastAPI therefore sees /api/...
+    if request.url.path.startswith("/api/") or request.url.path == "/api":
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
     return response
+
 
 # Sessions are signed and HttpOnly. Keep SESSION_SECRET_KEY private and stable.
 # HTTPS-only cookies are correct when IIS terminates HTTPS in front of Uvicorn.
@@ -39,22 +41,8 @@ app.add_middleware(
     session_cookie="expense_session",
     max_age=int(os.getenv("SESSION_MAX_AGE_SECONDS", str(30 * 24 * 60 * 60))),
     same_site="lax",
-    # Keep Secure cookies enabled in production HTTPS. Set SESSION_COOKIE_HTTPS_ONLY=false
-    # only when the browser connects directly over HTTP (e.g. temporary internal test).
     https_only=os.getenv("SESSION_COOKIE_HTTPS_ONLY", "true").strip().lower() not in {"0", "false", "no"},
 )
-
-
-#@app.middleware("http")
-#async def same_origin_write_guard(request: Request, call_next):
-#    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.url.path.startswith("/api/"):
-#        origin = request.headers.get("origin")
-##        if origin:
-#            origin_host = urlparse(origin).hostname
-#            request_host = request.url.hostname
-#            if origin_host and request_host and origin_host.lower() != request_host.lower():
-#                return JSONResponse(status_code=403, content={"detail": "درخواست از مبدأ نامعتبر رد شد."})
-#    return await call_next(request)
 
 
 # API Routers
@@ -67,18 +55,17 @@ app.include_router(report_schedules_router)
 app.include_router(payments_router)
 
 
-# Static files
+# Static files. IIS forwards /expense/static/... as /static/...
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
 @app.get("/service-worker.js", include_in_schema=False)
 def service_worker():
-    # Serve at the origin root so its scope can cover the whole PWA.
     path = Path("app/static/service-worker.js")
     return FileResponse(
         path,
         media_type="application/javascript",
-        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+        headers={"Service-Worker-Allowed": "/expense/", "Cache-Control": "no-cache"},
     )
 
 

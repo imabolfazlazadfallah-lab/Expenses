@@ -41,7 +41,7 @@ let voiceSupported = false;
 
 const TRIAL_DAYS = 7;
 
-let MONTHLY_LICENSE_PRICE = 50000;
+let MONTHLY_LICENSE_PRICE = 200000;
 let serverSubscriptionStatus = { active: false, activeUntil: null };
 
 
@@ -401,7 +401,82 @@ function categoryIcon(categoryName) {
             "✈️",
 
         "سایر":
-            "📦"
+            "📦",
+
+        "حقوق و درآمد":
+            "💵",
+
+        "ورزش":
+            "🏋️",
+
+        "حیوانات خانگی":
+            "🐾",
+
+        "بیمه":
+            "🛡️",
+
+        "مالیات":
+            "🧾",
+
+        "هدیه":
+            "🎁",
+
+        "کافه":
+            "☕",
+
+        "رستوران":
+            "🍽️",
+
+        "زیبایی و آرایش":
+            "💄",
+
+        "لوازم خانه":
+            "🛋️",
+
+        "تعمیرات":
+            "🧰",
+
+        "بانک و کارمزد":
+            "🏦",
+
+        "سرمایه‌گذاری":
+            "📈",
+
+        "فرزند":
+            "🧒",
+
+        "باغبانی":
+            "🌱",
+
+        "کتاب":
+            "📚",
+
+        "موسیقی":
+            "🎵",
+
+        "بازی":
+            "🎲",
+
+        "کمک و خیریه":
+            "❤️",
+
+        "سفرهای شهری":
+            "🚌",
+
+        "پارکینگ":
+            "🅿️",
+
+        "سوخت":
+            "⛽",
+
+        "آب":
+            "🚰",
+
+        "برق":
+            "💡",
+
+        "گاز":
+            "🔥"
 
     };
 
@@ -536,7 +611,7 @@ function showToast(message) {
 
 async function syncApplicationDate() {
     try {
-        const response = await fetch("/api/expenses/clock/today", { cache: "no-store" });
+        const response = await fetch("/expense/api/expenses/clock/today", { cache: "no-store" });
         if (!response.ok) throw new Error(`Clock API HTTP ${response.status}`);
         const data = await response.json();
         if (data?.status === "success" && /^\d{4}-\d{2}-\d{2}$/.test(data.today || "")) {
@@ -900,7 +975,7 @@ function isSubscriptionActive() {
 }
 
 async function loadSubscriptionStatus() {
-    const response = await fetch("/api/payments/status", {
+    const response = await fetch("/expense/api/payments/status", {
         credentials: "same-origin",
         cache: "no-store"
     });
@@ -922,17 +997,14 @@ function showPaymentReturnNotice() {
     const result = params.get("payment");
     if (!result) return;
 
-    closeSubscriptionPaywall();
-    document.body.classList.remove("subscription-modal-open");
-    updateSubscriptionStatus();
     if (result === "success") {
         showToast(isSubscriptionActive()
             ? "پرداخت با موفقیت تأیید شد؛ اشتراک شما فعال شد ✅"
-            : "پرداخت تأیید شده است؛ وضعیت اشتراک در حال همگام‌سازی است.");
+            : "پرداخت تأیید شده، اما وضعیت اشتراک هنوز به‌روزرسانی نشده است. صفحه را دوباره بارگذاری کنید.");
     } else if (result === "failed") {
         showToast("پرداخت انجام نشد یا توسط درگاه تأیید نشد.");
     } else {
-        showToast("نتیجه پرداخت هنوز نهایی نشده است؛ کمی بعد وضعیت را بررسی کنید.");
+        showToast("نتیجه پرداخت هنوز نهایی نشده است؛ چند لحظه بعد وضعیت را بررسی کنید.");
     }
 
     params.delete("payment");
@@ -940,37 +1012,197 @@ function showPaymentReturnNotice() {
     const cleanUrl = window.location.pathname + (query ? `?${query}` : "") + window.location.hash;
     window.history.replaceState({}, document.title, cleanUrl);
 }
-
 async function beginSubscriptionPayment() {
-    const button = document.getElementById("buySubscriptionButton");
-    if (!button || button.disabled) return;
-    const previousText = button.textContent;
-    button.disabled = true;
-    button.textContent = "در حال اتصال به درگاه...";
+    closeSubscriptionPaywall();
 
-    try {
-        const response = await fetch("/api/payments/zibal/request", {
-            method: "POST",
-            credentials: "same-origin",
-            headers: { "Accept": "application/json" }
+    // اگر باکس قبلاً ساخته شده، دوباره نساز
+    if (document.getElementById("subscription-payment-notice")) return;
+
+    const overlay = document.createElement("div");
+    overlay.id = "subscription-payment-notice";
+    overlay.dir = "rtl";
+
+    overlay.innerHTML = `
+        <div class="subscription-notice-backdrop">
+            <section
+                class="subscription-notice-box"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="subscription-notice-title"
+            >
+                <button
+                    type="button"
+                    class="subscription-notice-close"
+                    aria-label="بستن"
+                >&times;</button>
+
+                <h3 id="subscription-notice-title">تمدید اشتراک ماهانه</h3>
+                <p>مبلغ <strong>۲۰۰٬۰۰۰ تومان</strong> را به شماره کارت زیر واریز کنید:</p>
+
+                <button type="button" class="subscription-card-number" dir="ltr">
+                    6063 7313 0998 8732
+			<br>
+			ابوالفضل آزادفلاح	
+                </button>
+
+                <p>
+                    تصویر رسید را به تلگرام
+                    <a href="https://t.me/abolfazlazadfallah" target="_blank" rel="noopener">
+                        @abolfazlazadfallah
+                    </a>
+                    ارسال کنید.
+                </p>
+
+                <p class="subscription-notice-footnote">
+                    اشتراک پس از بررسی رسید فعال می‌شود.
+                </p>
+
+                <button type="button" class="subscription-notice-ok">
+                    متوجه شدم
+                </button>
+            </section>
+        </div>
+    `;
+
+    const style = document.createElement("style");
+    style.id = "subscription-payment-notice-style";
+    style.textContent = `
+        #subscription-payment-notice {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            font-family: inherit;
+        }
+
+        #subscription-payment-notice .subscription-notice-backdrop {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            background: rgba(20, 25, 28, 0.55);
+        }
+
+        #subscription-payment-notice .subscription-notice-box {
+            position: relative;
+            box-sizing: border-box;
+            width: min(100%, 380px);
+            padding: 28px 22px 20px;
+            border-radius: 20px;
+            background: #fff;
+            color: #30383c;
+            text-align: center;
+            box-shadow: 0 16px 50px rgba(0, 0, 0, 0.22);
+            animation: subscriptionNoticeIn 160ms ease-out;
+        }
+
+        #subscription-payment-notice h3 {
+            margin: 0 24px 16px;
+            font-size: 19px;
+        }
+
+        #subscription-payment-notice p {
+            margin: 12px 0;
+            line-height: 1.9;
+            font-size: 14px;
+        }
+
+        #subscription-payment-notice .subscription-notice-close {
+            position: absolute;
+            top: 10px;
+            left: 12px;
+            width: 32px;
+            height: 32px;
+            border: 0;
+            border-radius: 50%;
+            background: #f1f2f3;
+            color: #444;
+            font-size: 23px;
+            cursor: pointer;
+        }
+
+        #subscription-payment-notice .subscription-card-number {
+            width: 100%;
+            padding: 13px 10px;
+            border: 1px solid #e4e7e8;
+            border-radius: 12px;
+            background: #f7f8f8;
+            color: #30383c;
+            font-size: 19px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        #subscription-payment-notice a {
+            color: #1684c7;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        #subscription-payment-notice .subscription-notice-footnote {
+            color: #737b7f;
+            font-size: 13px;
+        }
+
+        #subscription-payment-notice .subscription-notice-ok {
+            width: 100%;
+            margin-top: 8px;
+            padding: 12px;
+            border: 0;
+            border-radius: 12px;
+            background: #374247;
+            color: #fff;
+            font: inherit;
+            cursor: pointer;
+        }
+
+        @keyframes subscriptionNoticeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+    `;
+
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+
+    const closeNotice = () => overlay.remove();
+
+    overlay.querySelector(".subscription-notice-close")
+        .addEventListener("click", closeNotice);
+
+    overlay.querySelector(".subscription-notice-ok")
+        .addEventListener("click", closeNotice);
+
+    // بستن با کلیک روی پس‌زمینه
+    overlay.querySelector(".subscription-notice-backdrop")
+        .addEventListener("click", (event) => {
+            if (event.target === event.currentTarget) closeNotice();
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.status !== "success" || !data.checkoutUrl) {
-            throw new Error(data.detail || "ایجاد درخواست پرداخت ناموفق بود.");
-        }
-        const checkoutUrl = new URL(data.checkoutUrl, window.location.origin);
-        if (checkoutUrl.protocol !== "https:" || !["gateway.zibal.ir", "gateway.zibal.io"].includes(checkoutUrl.hostname)) {
-            throw new Error("آدرس بازگشت درگاه معتبر نیست.");
-        }
-        // Close the subscription dialog as soon as the server has created a valid
-        // checkout session; then leave the app for the official gateway.
-        closeSubscriptionPaywall();
-        window.location.assign(checkoutUrl.href);
-    } catch (error) {
-        showToast(error?.message || "ارتباط با درگاه پرداخت برقرار نشد.");
-        button.disabled = false;
-        button.textContent = previousText || "فعال‌سازی اشتراک";
-    }
+
+    // کلیک روی شماره کارت آن را کپی می‌کند
+    overlay.querySelector(".subscription-card-number")
+        .addEventListener("click", async () => {
+            try {
+                await navigator.clipboard.writeText("6219861920168522");
+                overlay.querySelector(".subscription-card-number").textContent =
+                    "شماره کارت کپی شد ✓";
+
+                setTimeout(() => {
+                    const cardButton = overlay.querySelector(".subscription-card-number");
+                    if (cardButton) cardButton.textContent = "6219 8619 2016 8522";
+                }, 1600);
+            } catch {
+                // اگر مرورگر اجازهٔ کپی نداد، شماره همچنان روی صفحه قابل مشاهده است.
+            }
+        });
 }
 
 
@@ -1035,14 +1267,14 @@ function updateSubscriptionStatus() {
     `;
 
     if (isSubscriptionActive()) {
-        button.title = "اشتراک فعال";
+      /*  button.title = `با ثبت هزینه های خود ، دارایی تان را مدیریت کنید`;*/
+	  button.title = "";
     } else if (trial.status === "trial") {
         button.title = `نسخه آزمایشی — ${toPersianDigits(trial.remainingDays)} روز باقی مانده`;
     } else if (trial.status === "warning") {
         button.title = `نسخه آزمایشی — فقط ${toPersianDigits(trial.remainingDays)} روز باقی مانده`;
     } else {
-        button.title = "دوره آزمایشی تمام شده است؛ برای ادامه اشتراک تهیه کنید";
-    }
+button.title = "دوره آزمایشی تمام شده است";    }
     button.setAttribute("aria-label", button.title);
 }
 
@@ -1253,11 +1485,12 @@ function showSubscriptionPaywall() {
 
     if (isSubscriptionActive()) {
         if (title) title.textContent = "اشتراک شما فعال است";
-        if (summary) summary.textContent = "در صورت نیاز می‌توانید اطلاعات طرح اشتراک را بررسی کنید.";
+       /* if (summary) summary.textContent = `از اشتراک رایگان شما ${toPersianDigits(trial.remainingDays)} روز باقی مانده است .`;   */
+	   summary.textContent ="";
     } else if (trial.status === "trial") {
         if (title) title.textContent = "دوره آزمایشی فعال است";
-        if (summary) summary.textContent = `از تاریخ ثبت‌نام شما در دیتابیس محاسبه شده؛ ${toPersianDigits(trial.remainingDays)} روز باقی مانده است.`;
-    } else if (trial.status === "warning") {
+if (summary) summary.textContent = `از اشتراک رایگان شما ${toPersianDigits(trial.remainingDays)} روز باقی مانده است .`;    }
+ else if (trial.status === "warning") {
         if (title) title.textContent = "دوره آزمایشی رو به پایان است";
         if (summary) summary.textContent = `فقط ${toPersianDigits(trial.remainingDays)} روز از دوره آزمایشی باقی مانده است.`;
     } else {
@@ -1359,7 +1592,7 @@ async function loadTodaySummary() {
 
         const response =
             await fetch(
-                "/api/expenses/summary/today",
+                "/expense/api/expenses/summary/today",
                 { cache: "no-store" }
             );
 
@@ -1457,8 +1690,7 @@ async function loadMonthlySummary() {
 
         const response =
             await fetch(
-                "/api/expenses/summary/month",
-                { credentials: "same-origin", cache: "no-store" }
+                "/expense/api/expenses/summary/month"
             );
 
 
@@ -1697,7 +1929,7 @@ async function loadCategories() {
 
         const response =
             await fetch(
-                `/api/expenses/?from_date=${encodeURIComponent(
+                `/expense/api/expenses/?from_date=${encodeURIComponent(
                     monthStart
                 )}&to_date=${encodeURIComponent(
                     today
@@ -2275,7 +2507,7 @@ async function loadExpenses() {
 
         const response =
             await fetch(
-                `/api/expenses/?from_date=${encodeURIComponent(
+                `/expense/api/expenses/?from_date=${encodeURIComponent(
                     monthStart
                 )}&to_date=${encodeURIComponent(
                     today
@@ -2577,7 +2809,7 @@ async function submitExpenseText() {
 
         const response =
             await fetch(
-                "/api/expenses/text",
+                "/expense/api/expenses/text",
                 {
 
                     method:
@@ -2645,6 +2877,7 @@ async function submitExpenseText() {
 
 
             await refreshDashboard();
+            await loadAccounts();
 
             return;
         }
@@ -2728,7 +2961,7 @@ async function populateConfirmationAccounts(preferredAccountId = null) {
     if (confirmButton) confirmButton.disabled = true;
 
     try {
-        const response = await fetch("/api/accounts/");
+        const response = await fetch("/expense/api/accounts/");
         const data = await response.json();
         if (!response.ok || data.status !== "success") {
             throw new Error(data.message || "دریافت حساب‌ها ناموفق بود.");
@@ -2846,7 +3079,7 @@ async function confirmExpense() {
 
         const response =
             await fetch(
-                "/api/expenses/confirm",
+                "/expense/api/expenses/confirm",
                 {
 
                     method:
@@ -2904,6 +3137,7 @@ async function confirmExpense() {
 
 
             await refreshDashboard();
+            await loadAccounts();
 
         } else {
             showToast(
@@ -2958,7 +3192,7 @@ async function cancelExpense() {
     try {
 
         await fetch(
-            "/api/expenses/cancel",
+            "/expense/api/expenses/cancel",
             {
 
                 method:
@@ -3077,7 +3311,7 @@ async function openEditExpense(
 
         const response =
             await fetch(
-                "/api/expenses/?from_date=" +
+                "/expense/api/expenses/?from_date=" +
                 encodeURIComponent(
                     getMonthStartGregorian()
                 ) +
@@ -3236,7 +3470,7 @@ async function loadEditCategories(
 
         const response =
             await fetch(
-                "/api/categories/"
+                "/expense/api/categories/"
             );
 
 
@@ -3498,7 +3732,7 @@ async function saveEditExpense() {
 
         const response =
             await fetch(
-                "/api/expenses/edit",
+                "/expense/api/expenses/edit",
                 {
 
                     method:
@@ -3557,6 +3791,7 @@ async function saveEditExpense() {
 
 
             await refreshDashboard();
+            await loadAccounts();
 
         } else {
 
@@ -3616,7 +3851,7 @@ async function openDeleteExpense(
 
         const response =
             await fetch(
-                "/api/expenses/?from_date=" +
+                "/expense/api/expenses/?from_date=" +
                 encodeURIComponent(
                     getMonthStartGregorian()
                 ) +
@@ -3801,7 +4036,7 @@ async function deleteExpense() {
 
         const response =
             await fetch(
-                "/api/expenses/delete",
+                "/expense/api/expenses/delete",
                 {
 
                     method:
@@ -3843,6 +4078,7 @@ async function deleteExpense() {
 
 
             await refreshDashboard();
+            await loadAccounts();
 
         } else {
 
@@ -4799,9 +5035,9 @@ function setReportDateInputs(fromDate, toDate) {
 }
 
 async function fetchReportExpenses(fromDate, toDate) {
-    const url = `/api/expenses/?from_date=${encodeURIComponent(reportDateToISO(fromDate))}` +
+    const url = `/expense/api/expenses/?from_date=${encodeURIComponent(reportDateToISO(fromDate))}` +
         `&to_date=${encodeURIComponent(reportDateToISO(toDate))}`;
-    const response = await fetch(url, { credentials: "same-origin", cache: "no-store" });
+    const response = await fetch(url);
     const data = await response.json();
 
     if (!response.ok || data.status !== "success") {
@@ -5118,16 +5354,30 @@ function updateReportScheduleDayOptions() {
 }
 
 function syncReportScheduleChannel() {
+    const channel = document.getElementById("reportScheduleChannel")?.value || "EMAIL";
     const input = document.getElementById("reportScheduleDestination");
     const label = document.getElementById("reportScheduleDestinationLabel");
     const help = document.getElementById("reportScheduleHelp");
-    if (input) {
+    if (!input) return;
+    if (channel === "EMAIL") {
+        input.type = "email";
+        input.autocomplete = "email";
+        input.placeholder = "name@example.com";
+        if (label) label.textContent = "ایمیل مقصد";
+        if (help) help.textContent = "ایمیل با فایل کامل گزارش ارسال می‌شود؛ SMTP باید روی سرور تنظیم شده باشد.";
+    } else if (channel === "TELEGRAM") {
         input.type = "text";
         input.autocomplete = "off";
-        input.placeholder = "Chat ID عددی یا شناسه کانال با @";
+        input.placeholder = "شناسه چت تلگرام (Chat ID)";
+        if (label) label.textContent = "شناسه چت تلگرام";
+        if (help) help.textContent = "ابتدا ربات را Start کنید؛ سپس Chat ID را وارد کنید. توکن ربات باید روی سرور تنظیم شود.";
+    } else {
+        input.type = "tel";
+        input.autocomplete = "tel";
+        input.placeholder = "شماره همراه با کد کشور، مثل 98912...";
+        if (label) label.textContent = "شماره واتساپ";
+        if (help) help.textContent = "برای ارسال زمان‌بندی‌شده واتساپ، WhatsApp Business Cloud API و قالب تأییدشده دارای پیوست سند لازم است.";
     }
-    if (label) label.textContent = "شناسه چت تلگرام";
-    if (help) help.textContent = "گزارش قالب‌بندی‌شده Excel به تلگرام ارسال می‌شود. ابتدا ربات را Start کنید و Chat ID یا شناسه کانال عمومی را وارد کنید.";
 }
 
 function reportScheduleDescription(schedule) {
@@ -5140,7 +5390,7 @@ function reportScheduleDescription(schedule) {
 }
 
 function reportScheduleChannelLabel(channel) {
-    return channel === "TELEGRAM" ? "تلگرام · Excel" : "کانال قدیمی";
+    return ({ EMAIL: "ایمیل", TELEGRAM: "تلگرام", WHATSAPP: "واتساپ" })[channel] || channel;
 }
 
 function renderReportSchedules(schedules) {
@@ -5174,7 +5424,7 @@ async function loadReportSchedules() {
     const list = document.getElementById("reportScheduleList");
     if (!list) return;
     try {
-        const response = await fetch("/api/report-schedules/", { credentials: "same-origin", cache: "no-store" });
+        const response = await fetch("/expense/api/report-schedules/", { credentials: "same-origin", cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (!response.ok || data.status !== "success") {
             throw new Error(data.detail || data.message || "دریافت زمان‌بندی‌ها انجام نشد.");
@@ -5193,7 +5443,7 @@ async function saveReportSchedule(event) {
     const button = document.getElementById("saveReportScheduleButton");
     const payload = {
         frequency: document.getElementById("reportScheduleFrequency")?.value || "WEEKLY",
-        channel: "TELEGRAM",
+        channel: document.getElementById("reportScheduleChannel")?.value || "EMAIL",
         destination: document.getElementById("reportScheduleDestination")?.value.trim() || "",
         send_day: Number(document.getElementById("reportScheduleDay")?.value || 0),
         send_time: document.getElementById("reportScheduleTime")?.value || "09:00"
@@ -5206,7 +5456,7 @@ async function saveReportSchedule(event) {
     if (button) { button.disabled = true; button.textContent = "در حال ذخیره..."; }
     setReportScheduleStatus("در حال ذخیره زمان‌بندی...");
     try {
-        const response = await fetch("/api/report-schedules/", {
+        const response = await fetch("/expense/api/report-schedules/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
@@ -5230,7 +5480,7 @@ async function saveReportSchedule(event) {
 async function deactivateReportSchedule(scheduleId) {
     if (!Number.isInteger(scheduleId) || scheduleId <= 0) return;
     try {
-        const response = await fetch(`/api/report-schedules/${scheduleId}`, {
+        const response = await fetch(`/expense/api/report-schedules/${scheduleId}`, {
             method: "DELETE",
             credentials: "same-origin"
         });
@@ -5293,35 +5543,6 @@ function setAccountsStatus(message = "", isError = false) {
     el.classList.toggle("error", Boolean(isError));
 }
 
-function renderHomeWalletBalances(accounts) {
-    const container = document.getElementById("homeWalletBalanceItems");
-    const totalEl = document.getElementById("homeWalletTotal");
-    if (!container || !totalEl) return;
-
-    const active = (Array.isArray(accounts) ? accounts : []).filter(account => account && account.is_active);
-    const total = active.reduce((sum, account) => sum + Number(account.current_balance || 0), 0);
-    totalEl.textContent = formatMoney(total);
-
-    if (!active.length) {
-        container.innerHTML = '<span class="home-wallet-empty">هنوز کیف پول یا حساب فعالی ثبت نشده است.</span>';
-        return;
-    }
-
-    container.innerHTML = active
-        .slice()
-        .sort((a, b) => String(a.account_name || "").localeCompare(String(b.account_name || ""), "fa"))
-        .map(account => {
-            const balance = Number(account.current_balance || 0);
-            const type = String(account.account_type || "CASH").toUpperCase();
-            return `<div class="home-wallet-balance-item ${balance < 0 ? "negative" : ""}">
-                <span class="home-wallet-account-icon" aria-hidden="true">${accountTypeIcon(type)}</span>
-                <span class="home-wallet-account-name">${escapeHtml(account.account_name || accountTypeLabel(type))}</span>
-                <strong>${escapeHtml(formatMoney(balance))}</strong>
-            </div>`;
-        }).join("");
-}
-
-
 async function loadAccounts() {
     const list = document.getElementById("accountsList");
     if (!list) return;
@@ -5330,15 +5551,12 @@ async function loadAccounts() {
 
     try {
         const includeInactive = document.getElementById("showInactiveAccounts")?.checked ?? includeInactiveAccounts;
-        const response = await fetch(`/api/accounts/?include_inactive=${includeInactive ? "true" : "false"}`, {
-            credentials: "same-origin", cache: "no-store"
-        });
+        const response = await fetch(`/expense/api/accounts/?include_inactive=${includeInactive ? "true" : "false"}`);
         const data = await response.json();
         if (!response.ok || data.status !== "success") throw new Error(data.message || "دریافت حساب‌ها ناموفق بود.");
 
         currentAccounts = (data.accounts || []).filter(item => item.is_active);
         const shownAccounts = data.accounts || [];
-        renderHomeWalletBalances(shownAccounts);
         const active = shownAccounts.filter(item => item.is_active);
         const balanceTotal = active.reduce((sum, item) => sum + Number(item.current_balance || 0), 0);
         const spentTotal = active.reduce((sum, item) => sum + Number(item.spent_total || 0), 0);
@@ -5362,7 +5580,6 @@ async function loadAccounts() {
                     <button type="button" class="primary-button" id="emptyAddAccountButton">ایجاد اولین حساب</button>
                 </div>`;
             setAccountsStatus("");
-            await loadUsageLevel();
             return;
         }
 
@@ -5414,15 +5631,10 @@ async function loadAccounts() {
                 </article>`;
         }).join("");
         setAccountsStatus(`${formatNumber(shownAccounts.length)} حساب نمایش داده شد.`);
-        await loadUsageLevel();
     } catch (error) {
         console.error("loadAccounts ERROR:", error);
         list.innerHTML = '<div class="empty-state">خطا در دریافت حساب‌ها. سرویس حساب‌ها و اتصال Oracle را بررسی کنید.</div>';
         setAccountsStatus(error.message || "خطا در دریافت حساب‌ها.", true);
-        const homeWallet = document.getElementById("homeWalletBalanceItems");
-        const homeTotal = document.getElementById("homeWalletTotal");
-        if (homeWallet) homeWallet.innerHTML = '<span class="home-wallet-empty">موجودی در حال حاضر قابل دریافت نیست؛ دوباره تلاش کنید.</span>';
-        if (homeTotal) homeTotal.textContent = "—";
     }
 }
 
@@ -5466,7 +5678,7 @@ async function saveAccount() {
     const defaultButtonText = isEditing ? "ذخیره تغییرات" : "ذخیره حساب";
     if (button) { button.disabled = true; button.textContent = "در حال ذخیره..."; }
     try {
-        const url = isEditing ? `/api/accounts/${currentAccountEditId}` : "/api/accounts/";
+        const url = isEditing ? `/expense/api/accounts/${currentAccountEditId}` : "/expense/api/accounts/";
         const response = await fetch(url, {
             method: isEditing ? "PUT" : "POST",
             headers: { "Content-Type": "application/json" },
@@ -5566,7 +5778,7 @@ async function saveAccountCredit() {
         button.textContent = "در حال ثبت...";
     }
     try {
-        const response = await fetch(`/api/accounts/${currentAccountCreditId}/credits`, {
+        const response = await fetch(`/expense/api/accounts/${currentAccountCreditId}/credits`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -5611,7 +5823,7 @@ async function openAccountTransferForm() {
     let accounts = (currentAccounts || []).filter(account => account.is_active);
     if (accounts.length < 2) {
         try {
-            const response = await fetch("/api/accounts/");
+            const response = await fetch("/expense/api/accounts/");
             const data = await response.json();
             if (response.ok && data.status === "success") {
                 accounts = (data.accounts || []).filter(account => account.is_active);
@@ -5698,7 +5910,7 @@ async function saveAccountTransfer() {
         button.textContent = "در حال ثبت...";
     }
     try {
-        const response = await fetch("/api/accounts/transfers", {
+        const response = await fetch("/expense/api/accounts/transfers", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -5737,7 +5949,7 @@ async function loadEditAccountOptions(selectedAccountId = null) {
     if (!select) return;
     select.innerHTML = '<option value="">بدون تغییر / حساب انتخاب نشده</option>';
     try {
-        const response = await fetch("/api/accounts/");
+        const response = await fetch("/expense/api/accounts/");
         const data = await response.json();
         if (!response.ok || data.status !== "success") return;
         const accounts = (data.accounts || []).filter(account => account.is_active);
@@ -5767,7 +5979,7 @@ async function openAccountTransactions(accountId) {
     if (list) list.innerHTML = '<div class="loading">در حال دریافت گردش حساب...</div>';
 
     try {
-        const response = await fetch(`/api/accounts/${Number(accountId)}/transactions?limit=100`);
+        const response = await fetch(`/expense/api/accounts/${Number(accountId)}/transactions?limit=100`);
         const data = await response.json();
         if (!response.ok || data.status !== "success") throw new Error(data.message || "گردش حساب دریافت نشد.");
         if (title) title.textContent = `گردش ${data.account_name || "حساب"}`;
@@ -5824,7 +6036,7 @@ async function handleAccountListAction(event) {
     if (!(["deactivate", "activate"].includes(action))) return;
 
     try {
-        const response = await fetch(`/api/accounts/${accountId}/${action}`, { method: "POST" });
+        const response = await fetch(`/expense/api/accounts/${accountId}/${action}`, { method: "POST" });
         const data = await response.json();
         if (!response.ok || data.status !== "success") throw new Error(data.message || "عملیات انجام نشد.");
         showToast(data.message || "وضعیت حساب تغییر کرد.");
@@ -5836,7 +6048,7 @@ async function handleAccountListAction(event) {
 
 async function findAccountForAction(accountId) {
     try {
-        const response = await fetch("/api/accounts/?include_inactive=true");
+        const response = await fetch("/expense/api/accounts/?include_inactive=true");
         const data = await response.json();
         if (data.status === "success") return (data.accounts || []).find(item => Number(item.account_id) === Number(accountId)) || null;
     } catch (error) {
@@ -5947,7 +6159,7 @@ async function loadSpendingInsights() {
     }
 
     try {
-        const response = await fetch("/api/expenses/insights", { cache: "no-store" });
+        const response = await fetch("/expense/api/expenses/insights", { cache: "no-store" });
         const data = await response.json();
         if (!response.ok || data.status !== "success") {
             throw new Error(data.message || "Spending insights API error");
@@ -6026,29 +6238,27 @@ async function loadSpendingInsights() {
 }
 
 
-async function loadUsageLevel() {
-    const badge = document.getElementById("usageLevelBadge");
-    if (!badge) return;
-    try {
-        const response = await fetch("/api/auth/usage-level", { credentials: "same-origin", cache: "no-store" });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || data.status !== "success" || !data.usage) return;
-        const usage = data.usage;
-        const labels = { PLATINUM: "پلاتینیوم", GOLD: "طلایی", SILVER: "نقره‌ای", BRONZE: "برنز" };
-        const label = labels[usage.level] || usage.label || "برنز";
-        badge.className = `usage-level-badge ${String(usage.level || "BRONZE").toLowerCase()}`;
-        badge.textContent = `سطح ${label}`;
-        badge.title = `بر اساس ${toPersianDigits(usage.score || 0)} امتیاز فعالیت مالی؛ هزینه‌ها، واریزها، انتقال‌ها و حساب‌های فعال`;
-        badge.setAttribute("aria-label", badge.title);
-    } catch (error) {
-        console.warn("loadUsageLevel could not load the profile:", error?.message || error);
-    }
-}
-
-
 /* =====================================================
    REFRESH DASHBOARD
 ===================================================== */
+
+async function loadWalletBalance() {
+    const el = document.getElementById("walletBalance");
+    if (!el) return;
+    try {
+        const response = await fetch("/expense/api/accounts/summary?_=" + Date.now(), {
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "Cache-Control": "no-cache" }
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.status !== "success") throw new Error("balance");
+        const amount = Number(data.current_balance_total ?? data.total_balance ?? 0);
+        el.textContent = "مانده کیف پول: " + formatMoney(amount);
+    } catch (_) {
+        el.textContent = "مانده کیف پول: دریافت نشد";
+    }
+}
 
 async function refreshDashboard() {
 
@@ -6075,9 +6285,10 @@ async function refreshDashboard() {
     await Promise.all([
         loadTodaySummary(),
         loadMonthlySummary(),
+        loadCategories(),
         loadExpenses(),
         loadSpendingInsights(),
-        loadAccounts()
+        loadWalletBalance()
     ]);
 }
 
@@ -6454,7 +6665,7 @@ function base64UrlToUint8Array(value) {
 async function registerAppServiceWorker() {
     if (!("serviceWorker" in navigator)) throw new Error("این مرورگر از Service Worker پشتیبانی نمی‌کند.");
     if (!window.isSecureContext) throw new Error("اعلان PWA فقط در HTTPS یا localhost در دسترس است.");
-    appServiceWorkerRegistration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+    appServiceWorkerRegistration = await navigator.serviceWorker.register("/expense/service-worker.js", { scope: "/expense/" });
     return await navigator.serviceWorker.ready;
 }
 
@@ -6475,7 +6686,7 @@ async function enableDailyPushNotifications(reminderTime) {
         : await Notification.requestPermission();
     if (permission !== "granted") throw new Error("اجازه اعلان در مرورگر داده نشد.");
 
-    const config = await notificationApiJson("/api/notifications/config");
+    const config = await notificationApiJson("/expense/api/notifications/config");
     if (!config.configured || !config.public_key) {
         throw new Error(config.message || "کلیدهای Web Push هنوز روی سرور تنظیم نشده‌اند.");
     }
@@ -6493,7 +6704,7 @@ async function enableDailyPushNotifications(reminderTime) {
         throw new Error("اطلاعات اشتراک Push از مرورگر ناقص دریافت شد.");
     }
 
-    await notificationApiJson("/api/notifications/subscribe", {
+    await notificationApiJson("/expense/api/notifications/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -6511,7 +6722,7 @@ async function enableDailyPushNotifications(reminderTime) {
 
 async function disableDailyPushNotifications() {
     // Disable server-side first so no future reminders are queued for this user.
-    await notificationApiJson("/api/notifications/disable", { method: "POST" });
+    await notificationApiJson("/expense/api/notifications/disable", { method: "POST" });
     if (!("serviceWorker" in navigator)) {
         pushDailyReminderActive = false;
         return;
@@ -6529,7 +6740,7 @@ async function disableDailyPushNotifications() {
 async function openNotificationSettings() {
     let pushStatus = { active: false, reminder_time: getSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, "20:00") };
     try {
-        const response = await fetch("/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
+        const response = await fetch("/expense/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
         const data = await response.json().catch(() => ({}));
         if (response.ok && data.status === "success") pushStatus = data;
     } catch (_) {}
@@ -6576,7 +6787,7 @@ async function openNotificationSettings() {
         setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, time);
         try {
             if (pushDailyReminderActive) {
-                const response = await fetch("/api/notifications/reminder-time", {
+                const response = await fetch("/expense/api/notifications/reminder-time", {
                     method: "POST", credentials: "same-origin",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ reminder_time: time })
@@ -7164,6 +7375,40 @@ function createSettingsModal() {
 
 
             <div class="settings-content">
+
+
+                <button
+                    class="settings-item"
+                    type="button"
+                    data-setting="account"
+                >
+
+                    <div class="settings-item-icon">
+                        👤
+                    </div>
+
+
+                    <div class="settings-item-text">
+
+                        <div class="settings-item-title">
+                            حساب کاربری
+                        </div>
+
+
+                        <div class="settings-item-description">
+                            ${escapeHtml(
+                                getDisplayName()
+                            )}
+                        </div>
+
+                    </div>
+
+
+                    <div class="settings-item-arrow">
+                        ‹
+                    </div>
+
+                </button>
 
 
                 <button
@@ -7814,7 +8059,7 @@ async function prepareExistingCategoryCatalogs() {
     button.textContent = "در حال آماده‌سازی...";
     if (status) status.textContent = "در حال بررسی دسته‌های قبلی...";
     try {
-        const response = await fetch("/api/categories/prepare-existing-catalogs", {
+        const response = await fetch("/expense/api/categories/prepare-existing-catalogs", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin"
@@ -8196,7 +8441,7 @@ async function openEditCategory(
 
         const response =
             await fetch(
-                `/api/categories/${encodeURIComponent(
+                `/expense/api/categories/${encodeURIComponent(
                     categoryId
                 )}`
             );
@@ -8310,7 +8555,7 @@ async function waitForCategoryCatalogJob(jobId, maxAttempts = 50) {
 
         try {
             const response = await fetch(
-                `/api/categories/catalog-jobs/${encodeURIComponent(jobId)}?t=${Date.now()}`,
+                `/expense/api/categories/catalog-jobs/${encodeURIComponent(jobId)}?t=${Date.now()}`,
                 { cache: "no-store" }
             );
             const data = await response.json();
@@ -8429,7 +8674,7 @@ async function saveCategory(
     try {
 
         let url =
-            "/api/categories/";
+            "/expense/api/categories/";
 
 
         let method =
@@ -8466,7 +8711,7 @@ async function saveCategory(
 
 
             url =
-                `/api/categories/${encodeURIComponent(
+                `/expense/api/categories/${encodeURIComponent(
                     currentCategoryId
                 )}`;
 
@@ -8651,7 +8896,7 @@ async function changeCategoryStatus(
 
         const response =
             await fetch(
-                `/api/categories/${encodeURIComponent(
+                `/expense/api/categories/${encodeURIComponent(
                     categoryId
                 )}/status`,
                 {
@@ -8758,7 +9003,7 @@ async function deleteCategory(
 
         const response =
             await fetch(
-                `/api/categories/${encodeURIComponent(
+                `/expense/api/categories/${encodeURIComponent(
                     categoryId
                 )}`,
                 {
@@ -8849,7 +9094,7 @@ async function loadCategoryManagement() {
 
         const response =
             await fetch(
-                "/api/categories/?include_inactive=true"
+                "/expense/api/categories/?include_inactive=true"
             );
 
 
@@ -8885,7 +9130,7 @@ async function loadCategoryManagement() {
         // new shared category, while editing/deactivation/deletion stays owner-only.
         let isCategoryOwner = false;
         try {
-            const meResponse = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+            const meResponse = await fetch("/expense/api/auth/me", { credentials: "same-origin", cache: "no-store" });
             const meData = await meResponse.json().catch(() => ({}));
             isCategoryOwner = Number(meData?.user?.user_id) === 1;
         } catch (_ignored) {
@@ -9266,7 +9511,7 @@ function initializeExpenseApplication() {
             logoutButton.addEventListener("click", async () => {
                 logoutButton.disabled = true;
                 try {
-                    await fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" });
+                    await fetch("/expense/api/auth/logout", { method: "POST", credentials: "same-origin" });
                 } finally {
                     window.location.reload();
                 }
@@ -9810,7 +10055,7 @@ async function submitAuthForm(event) {
     if (message) { message.hidden = true; message.textContent = ""; }
     if (submit) { submit.disabled = true; submit.textContent = "در حال بررسی..."; }
     try {
-        const response = await fetch(authMode === "register" ? "/api/auth/register" : "/api/auth/login", {
+        const response = await fetch(authMode === "register" ? "/expense/api/auth/register" : "/expense/api/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
@@ -9829,138 +10074,56 @@ async function submitAuthForm(event) {
     }
 }
 
-let authBootstrapped = false;
-let authLossCheckInProgress = false;
-
-function showTemporaryAuthError() {
-    const gate = document.getElementById("authGate");
-    const shell = document.querySelector(".app-shell");
-    const title = document.getElementById("authTitle");
-    const description = document.getElementById("authDescription");
-    const tabs = document.querySelector(".auth-tabs");
-    const form = document.getElementById("authForm");
-    const note = document.querySelector(".auth-note");
-    const message = document.getElementById("authMessage");
-    const retry = document.getElementById("authRetryButton");
-    if (gate) gate.hidden = false;
-    if (shell) shell.classList.add("auth-pending");
-    if (title) title.textContent = "ارتباط موقتاً برقرار نیست";
-    if (description) description.textContent = "سرور برای بررسی نشست پاسخ نداد. این خطا به‌معنای خروج از حساب نیست؛ اتصال را بررسی کنید و دوباره تلاش کنید.";
-    if (tabs) tabs.hidden = true;
-    if (form) form.hidden = true;
-    if (note) note.hidden = true;
-    if (message) { message.hidden = true; message.textContent = ""; }
-    if (retry) retry.hidden = false;
-}
-
-function showLoginGate(messageText = "") {
-    const gate = document.getElementById("authGate");
-    const shell = document.querySelector(".app-shell");
-    const title = document.getElementById("authTitle");
-    const description = document.getElementById("authDescription");
-    const tabs = document.querySelector(".auth-tabs");
-    const form = document.getElementById("authForm");
-    const note = document.querySelector(".auth-note");
-    const retry = document.getElementById("authRetryButton");
-    if (gate) gate.hidden = false;
-    if (shell) shell.classList.add("auth-pending");
-    if (title) title.textContent = "مدیریت هزینه";
-    if (description) description.textContent = "برای دسترسی به اطلاعات خود وارد حساب شوید.";
-    if (tabs) tabs.hidden = false;
-    if (form) form.hidden = false;
-    if (note) note.hidden = false;
-    if (retry) retry.hidden = true;
-    setAuthMode("login");
-    if (messageText) showAuthMessage(messageText);
-}
-
 async function bootstrapAuthentication() {
+    // Register the PWA worker; notification permission is requested only after a user click.
     registerAppServiceWorker().catch(error => console.info("PWA service worker not yet registered:", error?.message || error));
     const gate = document.getElementById("authGate");
     const shell = document.querySelector(".app-shell");
-    if (!authBootstrapped) {
-        document.getElementById("authLoginTab")?.addEventListener("click", () => setAuthMode("login"));
-        document.getElementById("authRegisterTab")?.addEventListener("click", () => setAuthMode("register"));
-        document.getElementById("authForm")?.addEventListener("submit", submitAuthForm);
-        document.getElementById("authRetryButton")?.addEventListener("click", () => window.location.reload());
-        authBootstrapped = true;
-    }
+    document.getElementById("authLoginTab")?.addEventListener("click", () => setAuthMode("login"));
+    document.getElementById("authRegisterTab")?.addEventListener("click", () => setAuthMode("register"));
+    document.getElementById("authForm")?.addEventListener("submit", submitAuthForm);
     setAuthMode("login");
 
-    let authResult = null;
-    let lastFailure = null;
-    // A temporary Oracle/IIS/network error must not masquerade as a logged-out user.
-    for (let attempt = 0; attempt < 3; attempt++) {
-        try {
-            const response = await originalFetchForAuth("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
-            const data = await response.json().catch(() => ({}));
-            if (response.ok && typeof data.authenticated === "boolean") {
-                authResult = data;
-                break;
-            }
-            lastFailure = new Error(data.detail || `HTTP ${response.status}`);
-            if (response.status >= 400 && response.status < 500 && response.status !== 429) break;
-        } catch (error) {
-            lastFailure = error;
+    try {
+        const response = await fetch("/expense/api/auth/me", { credentials: "same-origin", cache: "no-store" });
+        const data = await response.json().catch(() => ({}));
+        if (response.ok && data.authenticated === true) {
+            currentAuthUser = data.user || null;
+            serverTrialStatus = data.trial || { status: "expired", remainingDays: 0 };
+            try { await loadSubscriptionStatus(); }
+            catch (error) { console.warn("Subscription status was not loaded:", error?.message || error); }
+            try {
+                const pushResponse = await fetch("/expense/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
+                const pushData = await pushResponse.json().catch(() => ({}));
+                if (pushResponse.ok && pushData.status === "success") {
+                    pushDailyReminderActive = Boolean(pushData.active);
+                    if (pushData.reminder_time) setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, pushData.reminder_time);
+                }
+            } catch (_) {}
+            if (gate) gate.hidden = true;
+            if (shell) shell.classList.remove("auth-pending");
+            initializeExpenseApplication();
+            showPaymentReturnNotice();
+            return;
         }
-        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 450 * (attempt + 1)));
+    } catch (error) {
+        // Keep the login form visible; submit will display the server error.
     }
-
-    if (!authResult) {
-        console.warn("Authentication status could not be confirmed:", lastFailure?.message || lastFailure);
-        showTemporaryAuthError();
-        return;
-    }
-
-    if (authResult.authenticated === true) {
-        currentAuthUser = authResult.user || null;
-        serverTrialStatus = authResult.trial || { status: "expired", remainingDays: 0 };
-        try { await loadSubscriptionStatus(); }
-        catch (error) { console.warn("Subscription status was not loaded:", error?.message || error); }
-        try {
-            const pushResponse = await originalFetchForAuth("/api/notifications/status", { credentials: "same-origin", cache: "no-store" });
-            const pushData = await pushResponse.json().catch(() => ({}));
-            if (pushResponse.ok && pushData.status === "success") {
-                pushDailyReminderActive = Boolean(pushData.active);
-                if (pushData.reminder_time) setSetting(SETTINGS_KEYS.DAILY_REMINDER_TIME, pushData.reminder_time);
-            }
-        } catch (_) {}
-        if (gate) gate.hidden = true;
-        if (shell) shell.classList.remove("auth-pending");
-        initializeExpenseApplication();
-        showPaymentReturnNotice();
-        return;
-    }
-
-    showLoginGate();
+    if (gate) gate.hidden = false;
+    if (shell) shell.classList.add("auth-pending");
 }
 
+// If the cookie expires while the app is open, ask the user to sign in again.
 const originalFetchForAuth = window.fetch.bind(window);
 window.fetch = async function(input, init) {
+    const response = await originalFetchForAuth(input, init);
     const url = typeof input === "string" ? input : (input?.url || "");
-    const isApi = url.includes("/api/");
-    const requestInit = { ...(init || {}) };
-    if (isApi) {
-        if (!Object.prototype.hasOwnProperty.call(requestInit, "credentials")) requestInit.credentials = "same-origin";
-        if (!Object.prototype.hasOwnProperty.call(requestInit, "cache")) requestInit.cache = "no-store";
-    }
-    const response = await originalFetchForAuth(input, requestInit);
-    if (response.status === 401 && isApi && !url.includes("/api/auth/")) {
-        if (!authLossCheckInProgress) {
-            authLossCheckInProgress = true;
-            try {
-                const check = await originalFetchForAuth("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
-                const data = await check.json().catch(() => ({}));
-                if (check.ok && data.authenticated === false) {
-                    showLoginGate("نشست ورود پایان یافته است؛ دوباره وارد شوید.");
-                }
-                // If auth status itself fails or is still authenticated, don't interrupt the user.
-            } catch (_) {
-                // A transient network error is not evidence that the user logged out.
-            } finally {
-                authLossCheckInProgress = false;
-            }
-        }
+    if (response.status === 401 && url.includes("/expense/api/") && !url.includes("/expense/api/auth/")) {
+        const gate = document.getElementById("authGate");
+        const shell = document.querySelector(".app-shell");
+        if (gate) gate.hidden = false;
+        if (shell) shell.classList.add("auth-pending");
+        showAuthMessage("نشست ورود منقضی شده است؛ لطفاً دوباره وارد شوید.");
     }
     return response;
 };

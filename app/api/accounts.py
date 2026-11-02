@@ -10,7 +10,7 @@ from app.services.account_balance import get_account_current_balance
 from app.services.app_clock import app_today
 
 router = APIRouter(prefix="/api/accounts", tags=["Accounts"], dependencies=[Depends(require_active_user)])
-#HI From Bahador
+
 ACCOUNT_TYPES = {
     "CASH": "پول نقد",
     "BANK": "حساب بانکی",
@@ -296,15 +296,12 @@ def update_account(request: Request, account_id: int, data: AccountUpdate):
         if int(cursor.fetchone()[0] or 0) > 0:
             return {"status": "error", "message": "حساب فعال دیگری با این نام وجود دارد."}
 
-        # A changed opening balance must include credits, expenses, and transfers.
         current_balance = get_account_current_balance(cursor, account_id, user_id)
         resulting_balance = current_balance - old_initial_balance + int(data.initial_balance)
-        # Do not block harmless edits to an account that was already negative.
-        # Reject only a change that would newly create or worsen a negative balance.
         if resulting_balance < 0 and int(data.initial_balance) < old_initial_balance:
             return {
                 "status": "error",
-                "message": f"کاهش موجودی اولیه باعث منفی‌تر شدن حساب می‌شود. برای ثبت هزینه جدید، از گزینه افزایش موجودی استفاده کنید.",
+                "message": "کاهش موجودی اولیه باعث منفی‌تر شدن حساب می‌شود. برای ثبت هزینه جدید، از گزینه افزایش موجودی استفاده کنید.",
             }
 
         cursor.execute(
@@ -387,7 +384,6 @@ def create_account_credit(request: Request, account_id: int, data: AccountCredit
 @router.post("/transfers")
 def create_account_transfer(request: Request, data: AccountTransferCreate):
     user_id = get_session_user_id(request)
-    """Post a transfer atomically; it is not an income or expense."""
     source_id = int(data.from_account_id)
     destination_id = int(data.to_account_id)
     amount = int(data.amount)
@@ -408,7 +404,6 @@ def create_account_transfer(request: Request, data: AccountTransferCreate):
     try:
         cursor = connection.cursor()
         locked_accounts = {}
-        # A stable lock order helps avoid deadlocks on concurrent transfers.
         for account_id in sorted([source_id, destination_id]):
             cursor.execute(
                 """SELECT ACCOUNT_ID, ACCOUNT_NAME
@@ -471,6 +466,7 @@ def create_account_transfer(request: Request, data: AccountTransferCreate):
         return {"status": "error", "message": f"خطا در انتقال وجه: {exc}"}
     finally:
         connection.close()
+
 
 @router.post("/{account_id}/deactivate")
 def deactivate_account(request: Request, account_id: int):

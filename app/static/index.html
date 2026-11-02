@@ -12,16 +12,16 @@
 
     <title>مدیریت هزینه</title>
 
-    <link rel="manifest" href="/manifest.webmanifest?v=20261014-feature-fix-v3">
+    <link rel="manifest" href="/expense/manifest.webmanifest?v=20261021-wallet-manual-payment-v1">
     <meta name="theme-color" content="#263238">
-    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/expense/static/icons/icon-192.png">
     <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.min.css"
     >
     <link
         rel="stylesheet"
-        href="/static/style.css?v=20261020-dashboard-wallet-tier-telegram-xlsx-v2"
+        href="/expense/static/style.css?v=20261021-wallet-manual-payment-v1"
     >
 
 </head>
@@ -52,7 +52,6 @@
             <div id="authMessage" class="auth-message" role="alert" hidden></div>
             <button id="authSubmitButton" type="submit" class="primary-button full-width auth-submit">ورود به برنامه</button>
         </form>
-        <button id="authRetryButton" type="button" class="secondary-button full-width auth-retry" hidden>تلاش دوباره برای اتصال</button>
         <p class="auth-note">اگر قبلاً اطلاعات ثبت کرده‌اید، ابتدا ورود همان حساب را فعال کنید؛ ثبت‌نام حساب تازه‌ای می‌سازد.</p>
     </div>
 </div>
@@ -63,9 +62,8 @@
     <!-- ================= HEADER ================= -->
 
     <header class="top-header">
-        <div class="app-brand">
+        <div>
             <div class="app-title" id="appTitle">مدیریت هزینه</div>
-            <span class="usage-level-badge bronze" id="usageLevelBadge" title="سطح استفاده از برنامه">سطح برنز</span>
         </div>
 
         <div class="header-actions" role="group" aria-label="اشتراک و حساب کاربری">
@@ -127,14 +125,8 @@
         </div>
 
 
-        <div class="home-wallet-balances" id="homeWalletBalances" aria-live="polite">
-            <div class="home-wallet-heading">
-                <span>مانده کیف پول و حساب‌ها</span>
-                <span class="home-wallet-total" id="homeWalletTotal">در حال دریافت...</span>
-            </div>
-            <div class="home-wallet-items" id="homeWalletBalanceItems" style="display: none;">
-                <span class="home-wallet-loading">در حال دریافت موجودی حساب‌ها...</span>
-            </div>
+        <div class="hero-wallet-balance" id="walletBalance" aria-live="polite">
+            مانده کیف پول: در حال دریافت...
         </div>
 
     </section>
@@ -298,6 +290,53 @@
             <div class="spending-insights-icon" aria-hidden="true">💡</div>
         </div>
         <div id="spendingInsightsList" class="spending-insights-list"></div>
+    </section>
+
+
+    <!-- ================= CATEGORIES ================= -->
+
+    <section class="dashboard-section">
+
+        <div class="section-header">
+
+            <div>
+
+                <div class="section-title">
+                    دسته‌بندی هزینه‌ها
+                </div>
+
+
+                <div class="section-subtitle">
+                    سهم هر دسته از هزینه‌های ماه جاری
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Category detail cards are intentionally hidden here; the donut chart below
+             is the compact overview. Full details remain available in Reports. -->
+        <div class="category-list" id="categoryList" style="display:none" aria-hidden="true"></div>
+
+
+        <!-- ================= CATEGORY CHART ================= -->
+
+        <div class="category-chart-wrapper">
+
+            <div class="category-chart-title">
+                توزیع هزینه‌ها
+            </div>
+
+
+            <div class="category-chart-container">
+
+                <canvas id="categoryChart"></canvas>
+
+            </div>
+
+        </div>
+
     </section>
 
 
@@ -494,7 +533,7 @@
                     <div class="report-schedule-field">
                         <label for="reportScheduleChannel">روش ارسال</label>
                         <select id="reportScheduleChannel" required>
-                            <option value="TELEGRAM" selected>تلگرام · فایل Excel</option>
+                            <option value="TELEGRAM">تلگرام</option>
                         </select>
                     </div>
                     <div class="report-schedule-field" id="reportScheduleDayField">
@@ -514,11 +553,11 @@
                         <input id="reportScheduleTime" type="time" value="09:00" required>
                     </div>
                     <div class="report-schedule-field report-schedule-destination-field">
-                        <label for="reportScheduleDestination" id="reportScheduleDestinationLabel">شناسه چت تلگرام</label>
-                        <input id="reportScheduleDestination" type="text" maxlength="64" required placeholder="مثلاً 123456789 یا -100123456789" autocomplete="off">
+                        <label for="reportScheduleDestination" id="reportScheduleDestinationLabel">ایمیل مقصد</label>
+                        <input id="reportScheduleDestination" type="email" maxlength="320" required placeholder="name@example.com" autocomplete="email">
                     </div>
                 </div>
-                <p class="report-schedule-help" id="reportScheduleHelp">گزارش زیبا و قالب‌بندی‌شده Excel به تلگرام ارسال می‌شود. ابتدا ربات را Start کنید و Chat ID عددی یا شناسه کانال را وارد کنید؛ توکن ربات باید روی سرور تنظیم شده باشد.</p>
+                <p class="report-schedule-help" id="reportScheduleHelp">برای تلگرام، ابتدا ربات را Start کنید و شناسه چت را وارد کنید. برای واتساپ باید API رسمی و قالب تأییدشده روی سرور تنظیم شده باشد.</p>
                 <button type="submit" class="primary-button full-width" id="saveReportScheduleButton">ذخیره زمان‌بندی</button>
                 <div id="reportScheduleStatus" class="report-schedule-status" role="status" aria-live="polite"></div>
             </form>
@@ -1150,7 +1189,7 @@
      ===================================================== -->
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="/static/app.js?v=20261020-dashboard-wallet-tier-telegram-xlsx-v2"></script>
+<script src="/expense/static/app.js?v=20261021-wallet-manual-payment-v1"></script>
 
 
 </body>

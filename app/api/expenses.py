@@ -297,7 +297,10 @@ def get_month_summary(request: Request):
     today = app_today()
     jalali_today = jdatetime.date.fromgregorian(date=today)
     jalali_month_start = jdatetime.date(jalali_today.year, jalali_today.month, 1)
+
     month_start = jalali_month_start.togregorian()
+    
+
     if jalali_today.month == 12:
         jalali_next_month_start = jdatetime.date(jalali_today.year + 1, 1, 1)
     else:
@@ -313,13 +316,25 @@ def get_month_summary(request: Request):
     try:
         cursor = connection.cursor()
         cursor.execute(
-            """SELECT NVL(SUM(AMOUNT), 0), COUNT(*)
-                 FROM EXP_EXPENSES
-                WHERE USER_ID = :user_id
-                  AND EXPENSE_DATE >= :month_start
-                  AND EXPENSE_DATE < :next_month_start""",
-            {"user_id": user_id, "month_start": month_start, "next_month_start": next_month_start},
-        )
+    """SELECT NVL(SUM(AMOUNT), 0), COUNT(*)
+         FROM EXP_EXPENSES
+        WHERE USER_ID = :user_id
+          AND EXPENSE_DATE >= TO_DATE(:month_start, 'YYYY-MM-DD')
+          AND EXPENSE_DATE < TO_DATE(:next_month_start, 'YYYY-MM-DD')""",
+    {
+        "user_id": user_id,
+        "month_start": month_start.strftime("%Y-%m-%d"),
+        "next_month_start": next_month_start.strftime("%Y-%m-%d"),
+    },
+)
+    #    cursor.execute(
+    #        """SELECT NVL(SUM(AMOUNT), 0), COUNT(*)
+    #             FROM EXP_EXPENSES
+    #            WHERE USER_ID = :user_id
+    #              AND EXPENSE_DATE >= :month_start
+    #              AND EXPENSE_DATE < :next_month_start""",
+    #        {"user_id": user_id, "month_start": month_start, "next_month_start": next_month_start},
+    #    )
         current_row = cursor.fetchone() or (0, 0)
         current_total = int(current_row[0] or 0)
         current_count = int(current_row[1] or 0)

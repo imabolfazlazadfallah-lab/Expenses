@@ -11,7 +11,7 @@ self.addEventListener("push", event => {
     let payload = {
         title: "یادآوری مدیریت هزینه",
         body: "اگر امروز هزینه‌ای داشتی، ثبتش کن تا گزارش‌هایت دقیق بماند.",
-        url: "/"
+        url: "/expense/"
     };
 
     if (event.data) {
@@ -24,11 +24,11 @@ self.addEventListener("push", event => {
 
     event.waitUntil(self.registration.showNotification(payload.title, {
         body: payload.body,
-        icon: "/static/icons/icon-192.png",
-        badge: "/static/icons/icon-192.png",
+        icon: "/expense/static/icons/icon-192.png",
+        badge: "/expense/static/icons/icon-192.png",
         tag: payload.tag || "daily-expense-reminder",
         renotify: false,
-        data: { url: payload.url || "/" },
+        data: { url: payload.url || "/expense/" },
         dir: "rtl",
         lang: "fa"
     }));
@@ -36,7 +36,7 @@ self.addEventListener("push", event => {
 
 self.addEventListener("notificationclick", event => {
     event.notification.close();
-    const targetUrl = new URL(event.notification.data?.url || "/", self.location.origin).href;
+    const targetUrl = new URL(event.notification.data?.url || "/expense/", self.location.origin).href;
     event.waitUntil((async () => {
         const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
         for (const client of windows) {

@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 ZIBAL_REQUEST_URL = "https://gateway.zibal.ir/v1/request"
 ZIBAL_VERIFY_URL = "https://gateway.zibal.ir/v1/verify"
 ZIBAL_START_URL = "https://gateway.zibal.ir/start/{track_id}"
-DEFAULT_MONTHLY_PRICE_TOMAN = 50000
+DEFAULT_MONTHLY_PRICE_TOMAN = 200000
 SUBSCRIPTION_DAYS = 30
 
 
